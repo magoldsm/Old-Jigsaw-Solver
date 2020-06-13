@@ -1,0 +1,18 @@
+for (int c3 = 0; c3 < fitc2.m_Arcs.rows(); c3++)
+{
+	const Curve& curve1 = Pieces[piecesc2(0)].m_Arcs(fitc2.m_Arcs(c3, 0)).m_Contour;
+	Curve curve2 = TransformCurve(
+		Pieces[piecesc2(1)].m_Arcs(fitc2.m_Arcs(c3, 1)).m_Contour,
+		Placements[Tracker.back().m_Pc2Place[piecesc2(1)]].m_gLock);
+	curve2.x.reverseInPlace();
+	curve2.y.reverseInPlace();
+
+	const Curve& sig1 = Pieces[piecesc2(0)].m_Arcs(fitc2.m_Arcs(c3, 0)).m_Signature;
+	Curve sig2 = Orient_Reverse(Pieces[piecesc2(1)].m_Arcs(fitc2.m_Arcs(c3, 1)).m_Signature);
+
+	Rigid_Motion_Translation(fitc2.m_ArcTrans[c3],
+		curve1,
+		curve2,
+		sig1,
+		sig2, fitc2.m_gFit.theta, params.beta);
+}

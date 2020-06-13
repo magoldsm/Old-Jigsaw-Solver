@@ -1,0 +1,21 @@
+for (int c4 = 0; c4 < fit.m_Size; c4++)
+{
+	const Curve& curve1 = Pieces[fit.m_Pieces(0)].m_Arcs(fit.m_Arcs(c4, 0)).m_Contour;
+	Curve curve2 = TransformCurve(
+		Pieces[fit.m_Pieces[1]].m_Arcs(fit.m_Arcs(c4, 1)).m_Contour,
+		Placements[Tracker.back().m_Pc2Place[fit.m_Pieces[1]]].m_gLock);
+	curve2.x.reverseInPlace();
+	curve2.y.reverseInPlace();
+
+	const Curve& sig1 = Pieces[fit.m_Pieces[0]].m_Arcs(fit.m_Arcs(c4, 0)).m_Signature;
+	Curve sig2 = Orient_Reverse(Pieces[fit.m_Pieces[1]].m_Arcs(fit.m_Arcs(c4, 1)).m_Signature);
+
+	Rigid_Motion_Translation(fit.m_ArcTrans[c4],
+		curve1,
+		curve2,
+		sig1,
+		sig2, fit.m_gFit.theta, params.beta);
+}
+
+fit.m_Score = muScore(fit.m_ArcTrans, Dx, Dy, params.C2);
+CalcMeanTranslation(fit);
