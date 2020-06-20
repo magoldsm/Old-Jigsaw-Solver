@@ -11,6 +11,7 @@
 #include "BivertexArcDecomposition.h"
 #include "Utilities.h"
 #include "SignatureSimilarity.h"
+#include "CProgress.h"
 
 
 using namespace std;
@@ -21,27 +22,13 @@ std::vector<CPiece> Pieces;
 Eigen::VectorXd Weights;
 VectorXd smoothVec, d1Vec, d2Vec;
 double Dx, Dy, Dkappa, Dkappas;
+double AverageLength;
+long AverageSize;
+CProgress Progress(4);
 
-static VectorXd test(MatrixX2d x)
-{
-	VectorXd res(x.rows());
-	
-	res = x.col(0);
-
-	return res;
-}
 
 int main()
 {
-	MatrixX2d x(5, 2);
-	x << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10;
-
-	cout << x << endl;
-
-	VectorXd y = test(x);
-
-	cout << y << endl;
-
 	LARGE_INTEGER liStart, liFrequency, liSG, liEuclid, liBVD, liTotal;
 
 	QueryPerformanceFrequency(&liFrequency);
@@ -87,31 +74,31 @@ int main()
 		Pieces[0] = contour;
 	*/
 
-	long AverageSize = 0;
-	double AverageLength = 0.0;
+	AverageSize = 0;
+	AverageLength = 0.0;
 	Weights.resize(nPieces);
+	atomic<int> nDone(0);
+	Progress.RestartReport(PROGRESS_EUCLID, true);
 
 	FOR_START(i, 0, nPieces)
 		CalcEuclideanSignature(Pieces[i], smoothVec, d1Vec, d2Vec);
-		//vector<Curve> test;
-		//test.push_back(Pieces[i].m_Contour);
-		//test.push_back(Pieces[i].m_Signature);
-
-		//PlotContours(test, "test", false);
-		//waitKey(0);
+		nDone += 1;
+		Progress[PROGRESS_EUCLID].m_Percent = 1.0*nDone / nPieces;
+		Progress.UpdateReport();
 	FOR_END
 
 	for (int i = 0; i < nPieces; i++)
 	{
 		Curve& c = Pieces[i].m_Contour;
-		VectorXd xm1, ym1;
-		circShift(c.x, xm1, -1);
-		circShift(c.y, ym1, -1);
+		Curve cm1;
+		cm1.resizeLike(c);
 
-		Weights[i] = Pieces[i].m_Signature.kappa.array().abs().sum();
+		circShift(c, cm1, -1);
+
+		Weights[i] = Pieces[i].m_Signature.col(0).array().abs().sum();
 
 		AverageSize += (long)Pieces[i].m_Contour.size();
-		AverageLength += ((c.x - xm1).array().square() + (c.y - ym1).array().square()).sqrt().sum();
+		AverageLength += ((c.col(0) - cm1.col(0)).array().square() + (c.col(1) - cm1.col(1)).array().square()).sqrt().sum();
 	}
 		
 	QueryPerformanceCounter(&liEuclid);
@@ -142,21 +129,34 @@ int main()
 	//BA.resize(Pieces.size());
 	//Pt2Arc.resize(Pieces.size());
 
+	nDone = 0;
+	Progress.RestartReport(PROGRESS_BIVERTEX, true);
+
 	FOR_START(i, 0, nPieces)
 		BivertexArcDecomposition(Pieces[i], delta0, delta1/*, BA[i], Pt2Arc[i]*/);
+		nDone++;
+		Progress[PROGRESS_BIVERTEX].m_Percent = 1.0*nDone / nPieces;
+		Progress.UpdateReport();
 	FOR_END
 
 	QueryPerformanceCounter(&liBVD);
 	cout << "Bivertex Decomp " << (liBVD.QuadPart - liEuclid.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
 
-	for (int i = 0; i < nPieces; i++)
-	{
-		//PlotDecomposition(Pieces[i], i);
-		//PlotKappasDecomposition(Pieces[i], delta0, i);
-		waitKey(1);
-	}
+	Progress.RestartReport(PROGRESS_EUCLID, true);
+	Progress[PROGRESS_EUCLID].m_Percent = 1.0;
+	Progress.UpdateReport();
+	Progress.RestartReport(PROGRESS_BIVERTEX, true);
+	Progress[PROGRESS_BIVERTEX].m_Percent = 1.0;
+	Progress.UpdateReport();
 
-	waitKey(0);
+	//for (int i = 0; i < nPieces; i++)
+	//{
+	//	PlotDecomposition(Pieces[i], i);
+	//	PlotKappasDecomposition(Pieces[i], delta0, i);
+	//	waitKey(1);
+	//}
+
+	//waitKey(0);
 
 	PlacePieces();
 	QueryPerformanceCounter(&liTotal);

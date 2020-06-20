@@ -7,7 +7,7 @@ using namespace Eigen;
 using namespace cv;
 using namespace std;
 
-void MyNorm(Eigen::MatrixXd mat, Vector2d& dmin, Vector2d& dmax)
+void MyNormm(Eigen::MatrixXd& mat, Vector2d& dmin, Vector2d& dmax)
 {
 	int imin, imax;
 
@@ -17,7 +17,7 @@ void MyNorm(Eigen::MatrixXd mat, Vector2d& dmin, Vector2d& dmax)
 	dmax(1) = mat.row(1).maxCoeff(&imax);
 }
 
-void MyNorm(VectorXd& vec, double& dmin, double& dmax)
+void MyNormv(VectorXd& vec, double& dmin, double& dmax)
 {
 	int imin, imax;
 
@@ -28,12 +28,12 @@ void MyNorm(VectorXd& vec, double& dmin, double& dmax)
 }
 
 
-void MyNorm(VectorXd& vec)
+void MyNormv(VectorXd& vec)
 {
 	double dmin;
 	double dmax;
 
-	MyNorm(vec, dmin, dmax);
+	MyNormv(vec, dmin, dmax);
 }
 
 
@@ -48,8 +48,12 @@ PlotContours(vector<Curve>& Curves, const char* windowName, bool bOverlay)
 	for (int i = 0; i < sz; i++)
 	{
 		Curve& norm = Norms[i];
-		MyNorm(norm.kappa, dKappaMin[i], dKappaMax[i]);
-		MyNorm(norm.kappas, dKappasMin[i], dKappasMax[i]);
+		VectorXd normkappa = norm.col(0);
+		VectorXd normkappas = norm.col(1);
+		MyNormv(normkappa, dKappaMin[i], dKappaMax[i]);
+		MyNormv(normkappas, dKappasMin[i], dKappasMax[i]);
+		norm.col(0) = normkappa;
+		norm.col(1) = normkappas;
 	}
 
 	//int key;
@@ -73,8 +77,8 @@ PlotContours(vector<Curve>& Curves, const char* windowName, bool bOverlay)
 			Curve& norm = Norms[i];
 			for (int j = 0; j < norm.size(); j++)
 			{
-				int X = (int)(norm.x[j] * 511);
-				int Y = (int)(norm.y[j] * 511);
+				int X = (int)(norm(j, 0) * 511);
+				int Y = (int)(norm(j, 1) * 511);
 				if (X < 0) X = 0;
 				if (Y < 0) Y = 0;
 				drawings[dIndex].at<unsigned char>(X, Y) = 255;
@@ -89,6 +93,27 @@ PlotContours(vector<Curve>& Curves, const char* windowName, bool bOverlay)
 	}
 
 }
+
+void circShift(const Curve& min, Curve& mout, int shift)
+{
+	mout.resizeLike(min);
+
+	int sz = (int)min.rows();
+
+	if (shift < 0)
+	{
+		mout.bottomRows(sz + shift) = min.topRows(sz + shift);
+		mout.topRows(-shift) = min.bottomRows(-shift);
+		return;
+	}
+	else
+	{
+		mout.topRows(sz - shift) = min.bottomRows(sz - shift);
+		mout.bottomRows(shift) = min.topRows(shift);
+		return;
+	}
+}
+
 
 void circShift(const VectorXd& vin, VectorXd& vout, int shift)
 {
@@ -126,8 +151,8 @@ void MaxD(const std::vector<CPiece>& pieces, Curve CPiece::*curve, double& width
 		const CPiece& piece = pieces[i];
 
 		Curve c = piece.*curve;
-		double w = c.x.maxCoeff() - c.x.minCoeff();
-		double h = c.y.maxCoeff() - c.y.minCoeff();
+		double w = c.col(0).maxCoeff() - c.col(0).minCoeff();
+		double h = c.col(1).maxCoeff() - c.col(1).minCoeff();
 		// cout << i << " " << w << " " << h << endl;
 		width = max(width, w);
 		height = max(height, h);
@@ -147,13 +172,26 @@ bool IsMember(int s, const std::vector<int> v)
 	return false;
 }
 
-bool AnyMatch(const VectorXi & v1, const VectorXi & v2)
+bool AnyMatch(const VectorXi & v1, const std::vector<int> & v2)
 {
 	for (int i = 0; i < v1.size(); i++)
 		for (int j = 0; j < v2.size(); j++)
 			if (v1[i] == v2[j])
 				return true;
 	return false;
+}
+
+// Construct a new MatrixX2d that is a subset of "src" using the indices
+
+Eigen::MatrixX2d Gather(const MatrixX2d & src, std::vector<int> indices)
+{
+	size_t sz = indices.size();
+	MatrixX2d res(sz, 2);
+
+	for (int i = 0; i < sz; i++)
+		res.row(i) = src.row(indices[i]);
+
+	return res;
 }
 
 void
@@ -164,7 +202,7 @@ Plot(const char* window, const VectorXd& vec, double dDelta, bool bAnimate)
 
 	double min, max;
 
-	MyNorm(norm, min, max);
+	MyNormv(norm, min, max);
 	
 	Mat drawing = Mat::zeros(Size(512, 512), CV_8UC1);
 
@@ -205,10 +243,31 @@ EuclideanSignature
 Orient_Reverse(EuclideanSignature& sig)
 {
 	EuclideanSignature newsig;
+	newsig.resizeLike(sig);
 
-	newsig.kappa = -sig.kappa.reverse();
-	newsig.kappas = sig.kappas.reverse();
+	newsig.col(0) = -sig.col(0).reverse();
+	newsig.col(1) = sig.col(1).reverse();
 
 	return newsig;
+}
+
+
+// Generates an array of 0..size-1 and then removes elements listed in the "except" vector
+
+void
+AllExcept(vector<int>& dest, size_t size, vector<int> except)
+{
+	dest.resize(size);
+	for (int i = 0; i < size; i++)
+		dest[i] = i;
+
+	auto icmp = [](const void* p1, const void* p2) { return *(int*)p1 - *(int*)p2; };
+	auto ucmp = [](int i, int j) { return i == j; };
+
+	qsort(except.data(), except.size(), sizeof(int), icmp);
+	unique(except.begin(), except.end(), ucmp);
+
+	for (int i = (int) except.size() - 1; i >= 0; i--)
+		dest.erase(dest.begin() + except[i]);
 }
 

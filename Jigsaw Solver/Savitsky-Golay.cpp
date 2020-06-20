@@ -93,7 +93,7 @@ void GenerateSGVector(int deriv, int order, int window, VectorXd& sgvec)
 void
 Convolve(const VectorXd& in, VectorXd& out, const VectorXd& filter)
 {
-	int sz = (int)in.size();
+	int sz = (int)in.rows();
 	int sgWindow = (int)filter.size() / 2;
 
 	FOR_START(i, 0, sz)

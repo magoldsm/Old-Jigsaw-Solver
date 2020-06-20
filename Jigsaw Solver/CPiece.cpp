@@ -111,11 +111,11 @@ void CPiece::operator=(std::vector<cv::Point2d>& contour)
 {
 	size_t sz = contour.size();
 
-	m_Contour.resize(sz);
+	m_Contour.resize(sz, 2);
 
 	for (size_t i = 0; i < sz; i++)
 	{
-		m_Contour.x[i] = contour[i].x;
-		m_Contour.y[i] = contour[i].y;
+		m_Contour(i, 0) = contour[i].x;
+		m_Contour(i, 1) = contour[i].y;
 	}
 }

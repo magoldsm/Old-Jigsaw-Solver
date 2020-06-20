@@ -9,6 +9,7 @@
 using namespace Eigen;
 using namespace std;
 
+using VectorXb = Matrix<bool, -1, 1>;
 
 /*
 function new_points = transf(points, trans, cm)
@@ -44,16 +45,16 @@ OUTPUTS
 %}
 */
 
-static Vector2d
-TransformAboutCM(const cv::Point2d points, const GTransform& trans, Vector2d cm)
+inline static Matrix<double, 1, 2>
+TransformAboutCM(const Vector2d point, const GTransform& trans, Vector2d cm)
 {
 	Vector2d result;
 
 	double c = cos(trans.theta);
 	double s = sin(trans.theta);
 
-	result[0] = (points.x * c - points.y * s) + trans.dx + cm[0];
-	result[1] = (points.x * s + points.y * c) + trans.dy + cm[1];
+	result[0] = (point(0) * c - point(1) * s) + trans.dx + cm[0];
+	result[1] = (point(0) * s + point(1) * c) + trans.dy + cm[1];
 
 	return result;
 }
@@ -116,218 +117,228 @@ OUTPUTS
 */
 
 void
-Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, int j)
+Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTransform& gLock, double K3, Indices& D_Delta_3_Ics, Indices& Dtilde_Delta_3_Ics, Indices& D_Delta_2_Ics, Indices& Dtilde_Delta_2_Ics)
 {
-	int n = (int) CDelta.size();
+	int nC = (int)CDelta.rows();
+	int nCtilde = (int)CtildeDelta.rows();
+	Curve CDeltam1;
+	vector<Curve> EtildeDeltaK1;
+	Curve EDeltaK1;
+	double thetaj = 0.0;
+	Vector2d cj(0.0, 0.0);
 
-	VectorXd dx, dy, dtildex, dtildey;
+	circShift(CDelta, CDeltam1, -1);
 
-	circShift(CDelta.x, dx, -1);
-	circShift(CDelta.y, dy, -1);
-	//circShift(CtildeDelta.x, dtildex, -1);
-	//circShift(CtildeDelta.y, dtildey, -1);
+	// Equation 5.3
 
-	double dStar = ((CDelta.x.array() - dx.array()).square() + (CDelta.y.array() - dy.array()).square()).sqrt().sum() / n;
+	double dStar = ((CDelta.col(0) - CDeltam1.col(0)).array().square() + (CDelta.col(1) - CDeltam1.col(1)).array().square()).sqrt().sum() / nC;
+	double dStarK1 = params.K1*dStar;
 
-	for (int c1 = 0; c1 < n; c1++)
+	// Equations 5.4
+	//
+	// bNearby is a boolean matrix.  It has CtildeDelta.rows() rows by CDelta.rows() columns.  Thus, each row corresponds
+	// to an element (ztilde) in CtildeDelta) and each column corresponds to an element in CDelta.
+	//
+	// An entry is true if || ztilde - g . z || < dStar * K1.  That is if the points are "close enough" to interact in the
+	// locking alogorithm
+	// 
+
+	Matrix<bool, -1, -1> bNearby;
+	bNearby.resize(CtildeDelta.rows(), CDelta.rows());
+
+	FOR_START(c1, 0, nC)
+		bNearby.col(c1) = (CtildeDelta.rowwise() - TransformAboutCM(CDelta.row(c1), g0, Vector2d(0, 0))).rowwise().norm().array() < dStarK1;
+	FOR_END
+
+		// The goal is now to create 2 sets: EDeltaK1 and EtildeDeltaK1.  EtildeDeltaK1 is the set of points
+		// Tots is the number of trues in each column of bNearby.   nEDeltas
+		Matrix<Index, 1, -1> tots = bNearby.colwise().count();
+	int nEDeltas = (int)(tots.array() > 0).count();
+
+	if (nEDeltas == 0)
 	{
-		Vector2d gDotCDelta = TransformAboutCM(CDelta[c1], g0, Vector2d(0, 0));
-		MatrixXd x = Matrix<double, -1, 2, RowMajor>::Zero(n, 2);
-		Matrix<double, -1, 2, RowMajor> Sel(n, 2);
-		auto zzz = CtildeDelta.x.col(0);
-		Sel.col(0) = CtildeDelta.x.col(0);// -gDotCDelta(0);
-		Sel.col(1) = CtildeDelta.y.array();// -gDotCDelta(1);
-
-		cout << CtildeDelta[0] << endl;
-		cout << Sel.row(0) << endl;
-
-//		MatrixXd m = Matrix<double, -1, 1, ColMajor>::Ones(n) *TransformAboutCM(CDelta[c1], g0, Vector2d(0, 0));
-
-		//vecnorm(Ctilde_Delta - ones(size(Ctilde_Delta, 1), 1)*TransformAboutCM(CDelta[c1], g0, Vector2d(0, 0))) < params.K1*dStar;
-		//
-		//temp_pts = Ctilde_Delta(
-		//	vecnorm(Ctilde_Delta - ones(size(Ctilde_Delta, 1), 1)*transf(C_Delta(c1, :), g_0, [0, 0]))
-		//	< K_1*d_star, :);
-
+		gLock = GTransform();
+		return;
 	}
-	/*
-	for c1 = 1:n
-		temp_pts = Ctilde_Delta(
-			vecnorm(Ctilde_Delta - ones(size(Ctilde_Delta, 1), 1)*transf(C_Delta(c1, :), g_0, [0, 0]))
-			< K_1*d_star, :);
-	if (~isempty(temp_pts))
-		Etilde_Delta_K_1 = [Etilde_Delta_K_1; temp_pts];
-	E_Delta_K_1 = [E_Delta_K_1; C_Delta(c1, :)];
-	end;
-	end;
-*/
+
+	EtildeDeltaK1.resize(nEDeltas);
+	EDeltaK1.resize(nEDeltas, 2);
+	int iEtildeDeltaK1 = 0;
+
+	for (int c1 = 0; c1 < nC; c1++)
+	{
+		if (tots[c1] != 0)
+		{
+			EDeltaK1.row(iEtildeDeltaK1) = CDelta.row(c1);
+			Curve& c = EtildeDeltaK1[iEtildeDeltaK1++];
+			c.resize(tots[c1], 2);
+			int idx = 0;
+			for (int r1 = 0; r1 < nCtilde; r1++)
+			{
+				if (bNearby(r1, c1))
+				{
+					c.row(idx++) = CtildeDelta.row(r1);
+				}
+			}
+		}
+	}
+
+	// Calculate perturbation constants.  Equations 5.5 and 5.6
+
+	RowVector2d zCM = EDeltaK1.colwise().sum() / nEDeltas;
+	RowVectorXd normSquared = (EDeltaK1.rowwise() - zCM).rowwise().squaredNorm();
+	double r2 = normSquared.sum();
+	double rINF = normSquared.array().sqrt().maxCoeff();
+
+	// Convert g_0 from the form used in Assemble() (rotation around the
+	// origin) to the form used in Lock() (rotation around the center of
+	// mass
+
+	double c = cos(g0.theta);
+	double s = sin(g0.theta);
+	Matrix2d rot;
+	rot << c, -s, s, c;
+
+	Vector2d zCMt = zCM.transpose();
+
+	MatrixXd translation = rot * zCMt - zCMt + Vector2d(g0.dx, g0.dy);
+
+	GTransform gj(g0.theta, translation(0), translation(1));
+	RowVector2d wj = zCMt + translation;
+
+	// Perform iterative pertubation
+
+	double dj = dStarK1;
+	double ThetaJm1 = 0.0;
+	Vector2d cJm1(0.0, 0.0);
+	double dStarK4 = params.K4 * dStar;
+
+	for (int j = 0; j < params.jMax; j++)
+	{
+		double tauTotj = 0.0;
+		RowVector2d fTotj(0.0, 0.0);
+		VectorXd Aj(nEDeltas);
+
+		for (int c2 = 0; c2 < nEDeltas; c2++)
+		{
+			RowVector2d EDeltaK1Transformed = TransformAboutCM(EDeltaK1.row(c2), gj, zCM);
+			MatrixXd diff = EtildeDeltaK1[c2].rowwise() - EDeltaK1Transformed;
+			VectorXd diffNorm = diff.rowwise().norm();
+			Aj[c2] = diffNorm.minCoeff();
+
+			Vector2d fj;
+
+			if (Aj[c2] >= dStarK4)
+			{
+				Vector2d fj = (diff.array().colwise() / (diffNorm.array().pow(params.nu + 1) + params.epsilon * diffNorm.array())).colwise().sum();
+				fTotj.array() += fj.array();
+				RowVector2d t = EDeltaK1Transformed - wj;
+				tauTotj += t[0] * fj[1] - t[1] * fj[0];		// 
+			}
+		}
+
+		// Equation 5.10
+
+		double dAvj = Aj.mean();
+		qsort(Aj.data(), Aj.rows(), sizeof(double), [](const void* p1, const void* p2) -> int
+		{
+			return (int)(*(double*)p1 - *(double*)p2);
+		});
+
+		double dMedj = Aj.rows() & 1 ? Aj[Aj.rows() / 2] : (Aj[Aj.rows() / 2 - 1] + Aj[Aj.rows() / 2]) / 2;
+
+		// Terminate the algorithm if fit is poor and getting worse.
+
+		if (dAvj > dj && dMedj >= params.seq[j].K3*dStar)
+		{
+			gj.theta -= thetaj;
+			gj.dx -= cj[0];
+			gj.dy -= cj[1];
+			// ***BUGBUG*** Plotting code
+			break;
+		}
+
+		// Calculate new transformation.  Equation 5.12
+
+		double deltaj = params.rho * dMedj / max(fTotj.norm() / nEDeltas, rINF*fabs(tauTotj) / r2);
+
+		// Equations 5.11
+
+		thetaj = deltaj * tauTotj / r2;
+		cj = deltaj * fTotj / nEDeltas;
+
+		// Update key quantities - Step 7
+
+		gj.theta += thetaj;
+		gj.dx += cj[0];
+		gj.dy += cj[1];
+		wj += cj;
+		dj = dAvj;
+
+		// ***BUGBUG*** Plotting code
+
+		// Step 7, termination condition
+
+		if ((thetaj*ThetaJm1 < 0 && cj[0] * cJm1[0] < 0 && cj[1] * cJm1[1] < 0))
+			break;
+
+		ThetaJm1 = thetaj;
+		cJm1 = cj;
+	}
+
+	// Find indices of relevant sets
+
+	double K2dStar = params.K2 * dStar;
+	double K3dStar = K3 * dStar;
+	//Matrix<bool, -1, 1> D2Sel(nCtilde);
+	//Matrix<bool, -1, 1> D3Sel(nCtilde);
+
+	//D2Sel.setConstant(false);
+	//D3Sel.setConstant(false);
+
+	for (int c2 = 0; c2 < nC; c2++)
+	{
+		VectorXd diff = (CtildeDelta.rowwise() - TransformAboutCM(CDelta.row(c2), gj, zCM)).rowwise().norm();
+		VectorXb test = diff.array() < K2dStar;
+
+		if (test.any())
+		{
+			for (int i = 0; i < nCtilde; i++)
+				if (test[i])
+					Dtilde_Delta_2_Ics.push_back(i);
+			D_Delta_2_Ics.push_back(c2);
+		}
+
+		test = diff.array() < K3dStar;
+		if (test.any())
+		{
+			for (int i = 0; i < nCtilde; i++)
+				if (test[i])
+					Dtilde_Delta_3_Ics.push_back(i);
+			D_Delta_3_Ics.push_back(c2);
+		}
+	}
+
+	auto icmp = [](const void* p1, const void* p2) { return *(int*)p1 - *(int*)p2; };
+	qsort(Dtilde_Delta_2_Ics.data(), Dtilde_Delta_2_Ics.size(), sizeof(int), icmp);
+	qsort(Dtilde_Delta_3_Ics.data(), Dtilde_Delta_3_Ics.size(), sizeof(int), icmp);
+
+	auto ucmp = [](int i, int j) { return i == j; };
+	unique(Dtilde_Delta_2_Ics.begin(), Dtilde_Delta_2_Ics.end(), ucmp);
+	unique(Dtilde_Delta_3_Ics.begin(), Dtilde_Delta_3_Ics.end(), ucmp);
+
+	// ***BUGBUG*** Plotting code
+
+	// Convert gj to the form used in SignatureSimilarity()
+
+	//g_lock = [g_j(1), (g_j(2:3)' + z_cm' - [cos(g_j(1)), -sin(g_j(1)); sin(g_j(1)) cos(g_j(1))] * z_cm')'];
+
+	c = cos(gj.theta);
+	s = sin(gj.theta);
+	rot << c, -s, s, c;
+
+	translation = Vector2d(gj.dx, gj.dy) + zCMt - rot * zCMt;
+
+	gLock = GTransform(gj.theta, translation(0), translation(1));
+	int yyyy = 0;
 }
-
-/*
-
-
-function [g_lock, D_Delta_3_Ics, Dtilde_Delta_3_Ics, D_Delta_2_Ics, Dtilde_Delta_2_Ics, xph] = Lock(g_0, C_Delta, Ctilde_Delta, K_1, K_2, K_3, K_4, epsilon, nu, rho, j_max, plotter, fh)
-
-	% Initialize variables
-	n = size(C_Delta, 1);
-	d_star = sum(sqrt((circshift(C_Delta(:, 1), -1) - C_Delta(:, 1)).^2+(circshift(C_Delta(:, 2), -1) - C_Delta(:, 2)).^2))/n;
-	E_Delta_K_1 = [];
-	Etilde_Delta_K_1 = {};
-	D_Delta_3_Ics = [];
-	Dtilde_Delta_3_Ics = [];
-	D_Delta_2_Ics = [];
-	Dtilde_Delta_2_Ics = [];
-	xph = [];
-
-
-	% Set up plot if applicable
-	if(plotter)
-		if(~exist('fh', 'var'))
-			solo = 1;
-			fh = figure();
-			plot(Ctilde_Delta(:, 1), Ctilde_Delta(:, 2), '.b', 'MarkerSize', 5);
-			hold on;
-			axis equal;
-		else
-			figure(fh);
-			solo = 0;
-		end;
-		x = transf(C_Delta, g_0, [0 0]);
-		inith = plot(x(:, 1), x(:, 2), '--k');
-		axis auto;
-	end;
-
-
-	% Calculate Relevant Sets
-	for c1 = 1:n
-		temp_pts = Ctilde_Delta(vecnorm(Ctilde_Delta-ones(size(Ctilde_Delta, 1), 1)*transf(C_Delta(c1, :), g_0, [0, 0])) < K_1*d_star, :);
-		if(~isempty(temp_pts))
-			Etilde_Delta_K_1 = [Etilde_Delta_K_1 ; temp_pts];
-			E_Delta_K_1 = [E_Delta_K_1 ; C_Delta(c1, :)];
-		end;
-	end;
-	n1 = size(E_Delta_K_1, 1);
-
-	% Terminate algorithm if no changes will be made
-	if(n1 == 0)
-		q_tilde = 0;
-		q = 0;
-		g_lock = g_0;
-		return
-	end;
-
-	% Calculate perturbation constants
-	z_cm = sum(E_Delta_K_1, 1)/n1;
-	r_2 = sum(vecnorm(E_Delta_K_1 - ones(n1, 1)*z_cm).^2);
-	r_infty = max(vecnorm(E_Delta_K_1 - ones(n1, 1)*z_cm));
-
-	% Convert g_0 from the form used in Assemble() (rotation around the
-	% origin) to the form used in Lock() (rotation around the center of
-	% mass
-	g_j = [g_0(1), (g_0(2:3)' - z_cm' + [cos(g_0(1)), -sin(g_0(1)) ; sin(g_0(1)) cos(g_0(1))]*z_cm')'];
-	w_j = z_cm + g_j(1, 2:3);
-
-
-	% Perform iterative perturbation
-	d_j = K_1*d_star;
-	theta_jm1 = 0;
-	c_jm1 = 0;
-	for j = 1:j_max
-		tau_tot_j = 0;
-		f_tot_j = [0 0];
-		A_j = zeros(n1, 1);
-		for c2 = 1:n1
-			diff = Etilde_Delta_K_1{c2, 1} - ones(size(Etilde_Delta_K_1{c2, 1}, 1), 1)*transf(E_Delta_K_1(c2, :), g_j, z_cm);
-			A_j(c2, 1) = min(vecnorm(diff));
-			if(A_j(c2, 1) >= K_4*d_star)
-				f_j = sum(diff./((vecnorm(diff).^(nu+1)+epsilon*vecnorm(diff))*[1 1]), 1);
-			else
-				f_j = [0 0];
-			end;
-			f_tot_j = f_tot_j + f_j;
-			tau_tot_j = tau_tot_j + cross([transf(E_Delta_K_1(c2, :), g_j, z_cm)- w_j  0], [f_j 0])*[0 ; 0 ; 1];
-		end;
-		d_av_j = mean(A_j);
-		d_med_j = median(A_j);
-
-		% Terminate the algorithm if fit is poor and getting worse.
-		if(d_av_j > d_j && d_med_j >= K_3*d_star)
-			g_j = g_j - [theta_j c_j];
-			w_j = w_j - c_j;
-			if(plotter)
-				figure(fh);
-				delete(xph);
-				x = transf(C_Delta, g_j, z_cm);
-				xph = plot(x(:, 1), x(:, 2), 'k');
-			end;
-			break;
-		end;
-
-		% Calculate new transformation
-		delta_j = rho*d_med_j/max([vecnorm(f_tot_j)/n1, r_infty*abs(tau_tot_j)/r_2]);
-		theta_j = delta_j*tau_tot_j/r_2;
-		c_j = delta_j*f_tot_j/n1;
-
-		% Update key quantities
-		g_j = g_j + [theta_j c_j];
-		w_j = w_j + c_j;
-		d_j = d_av_j;
-
-		% Plot changes if applicable
-		if(plotter)
-			figure(fh);
-			delete(xph);
-			x = transf(C_Delta, g_j, z_cm);
-			xph = plot(x(:, 1), x(:, 2), 'k');
-		end;
-		if((theta_j*theta_jm1 < 0 && c_j(1, 1)*c_jm1(1, 1) < 0 && c_j(1, 2)*c_jm1(1, 2) < 0))
-			break;
-		end;
-		theta_jm1 = theta_j;
-		c_jm1 = c_j;
-	end;
-
-
-	% Find indices of relevant sets
-	for c2 = 1:n
-		diff = vecnorm(ones(size(Ctilde_Delta, 1), 1)*transf(C_Delta(c2, :), g_j, z_cm) - Ctilde_Delta);
-		temp_ind = find(diff < K_2*d_star);
-		if(~isempty(temp_ind))
-			D_Delta_2_Ics = [D_Delta_2_Ics ; c2];
-			Dtilde_Delta_2_Ics = [Dtilde_Delta_2_Ics; temp_ind];
-		end;
-		temp_ind = find(diff < K_3*d_star);
-		if(~isempty(temp_ind))
-			D_Delta_3_Ics = [D_Delta_3_Ics ; c2];
-			Dtilde_Delta_3_Ics = [Dtilde_Delta_3_Ics; temp_ind];
-		end;
-	end;
-	Dtilde_Delta_2_Ics = unique(Dtilde_Delta_2_Ics);
-	Dtilde_Delta_3_Ics = unique(Dtilde_Delta_3_Ics);
-
-	% Plot if applicable
-	if(plotter)
-		figure(fh);
-		x = transf(C_Delta, g_j, z_cm);
-		if(solo)
-			plot(x(D_Delta_3_Ics(:, 1), 1), x(D_Delta_3_Ics(:, 1), 2), 'ro');
-			pause;
-		else
-			if(get(gcf, 'CurrentCharacter') == 'p')
-				set(gcf, 'CurrentCharacter', 'a')
-				temph = plot(x(D_Delta_3_Ics(:, 1), 1), x(D_Delta_3_Ics(:, 1), 2), 'ro');
-				pause;
-				delete(temph);
-			end;
-			delete(inith);
-		end;
-	end;
-
-	% Convert g_j to the form used in Assemble()
-	g_lock = [g_j(1), (g_j(2:3)' + z_cm'- [cos(g_j(1)), -sin(g_j(1)) ; sin(g_j(1)) cos(g_j(1))]*z_cm')'];
-
-
-end
-
-
-*/

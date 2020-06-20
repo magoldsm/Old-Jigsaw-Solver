@@ -11,23 +11,30 @@ public:
 		m_RemainingPieces.resize(sz);
 		m_InactiveArcs.resize(sz);
 		m_ActiveArcs.resize(sz);
+		m_InactivePoints.resize(sz);
 		m_ActivePoints.resize(sz);
 		m_Pc2Place.resize(sz);
 	}
 	std::vector<int>				m_PlacedPieces;
 	std::vector<int>				m_RemainingPieces;
-	std::vector<Eigen::VectorXi>	m_InactiveArcs;
-	std::vector<Eigen::VectorXi>	m_ActiveArcs;
-	std::vector<Eigen::VectorXi>	m_ActivePoints;
+	std::vector<std::vector<int> >	m_InactiveArcs;
+	std::vector<std::vector<int>>	m_ActiveArcs;
+	std::vector<std::vector<int> >	m_InactivePoints;
+	std::vector<std::vector<int> >	m_ActivePoints;
 	std::vector<int>				m_Pc2Place;
 	Curve							m_SolvedPuzzleBoundary;
-	//std::vector<xxx>		m_InactivePoints;
+	Eigen::Matrix<int, -1, 2>		m_SPB_Pt2PcPt;
+	std::vector<int>				m_SP_Bdry_PtIcs_3;
+	std::vector<int>				m_SP_Bdry_PtIcs;
 
 };
+
+
 
 struct GTransform
 {
 	GTransform() { theta = 0.0; dx = 0.0; dy = 0.0; }
+	GTransform(double _theta, double _dx, double _dy) { theta = _theta; dx = _dx; dy = _dy; }
 	double		theta;
 	double		dx;
 	double		dy;
@@ -60,9 +67,9 @@ public:
 	{}
 	int								m_nPiece;
 	Eigen::Vector4d					m_Score;
-	GTransform							m_gLock;
+	GTransform						m_gLock;
 	CFit							m_Fit;
-	//***BUGBUG***					m_Neighbors;
+	std::vector<int>				m_Neighbors;
 };
 
 void PlacePieces();

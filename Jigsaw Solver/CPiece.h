@@ -19,7 +19,7 @@ public:
 	Curve			m_Contour;
 	Curve			m_Signature;
 	double			m_Weight;
-	bool			m_bActive;
+	int				m_nActive;
 	BATable			m_Arcs;
 	Eigen::VectorXi	m_Pt2Arc;
 

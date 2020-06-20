@@ -14,14 +14,15 @@ void BivertexArcDecomposition(CPiece& piece, double delta0, double delta1/*, BAT
 	VectorXi& Pt2Arc = piece.m_Pt2Arc;
 
 
-	int n1 = (int) piece.m_Contour.size();
+	int n1 = (int) piece.m_Contour.rows();
 	int sizeBAI = n1 / 2;
 	BAIndices.resize(sizeBAI, NoChange);
 
 	const Curve& signature = piece.m_Signature;
 	const Curve& contour = piece.m_Contour;
-	const VectorXd& kappa = signature.kappa;
-	const VectorXd& kappas = signature.kappas;
+	const VectorXd& kappa = signature.col(0);
+	const VectorXd& kappas = signature.col(1);
+	auto xxx = signature.col(0);
 
 	// Determine bivertex arc endpoint indices based on delta0 cut-off
 
@@ -115,27 +116,27 @@ void BivertexArcDecomposition(CPiece& piece, double delta0, double delta1/*, BAT
 
 	long s = BAIndices(0, 0);
 	long e = BAIndices(0, 1);
-	long nTail = (int) contour.size() - s;
+	long nTail = (int) contour.rows() - s;
 
 	if (s > e)
 	{
-		BA(0).m_Contour.x.resize(nTail + e);
-		BA(0).m_Contour.y.resize(nTail + e);
-		BA(0).m_Signature.x.resize(nTail + e);
-		BA(0).m_Signature.y.resize(nTail + e);
-		BA(0).m_Contour.x << contour.x.tail(nTail), contour.x.head(e);
-		BA(0).m_Contour.y << contour.y.tail(nTail), contour.y.head(e);
-		BA(0).m_Signature.x << signature.x.tail(nTail), signature.x.head(e);
-		BA(0).m_Signature.y << signature.y.tail(nTail), signature.y.head(e);
+		BA(0).m_Contour.resize(nTail + e, 2);
+		BA(0).m_Signature.resize(nTail + e, 2);
+		BA(0).m_Contour.col(0) << contour.col(0).tail(nTail), contour.col(0).head(e);
+		BA(0).m_Contour.col(1) << contour.col(1).tail(nTail), contour.col(1).head(e);
+		BA(0).m_Signature.col(0) << signature.col(0).tail(nTail), signature.col(0).head(e);
+		BA(0).m_Signature.col(1) << signature.col(1).tail(nTail), signature.col(1).head(e);
 		Pt2Arc.tail(nTail).setZero();
 		Pt2Arc.head(e).setZero();
 	}
 	else
 	{
-		BA(0).m_Contour.x = contour.x.segment(s, (e - s) + 1);
-		BA(0).m_Contour.y = contour.y.segment(s, (e - s) + 1);
-		BA(0).m_Signature.x = signature.x.segment(s, (e - s) + 1);
-		BA(0).m_Signature.y = signature.y.segment(s, (e - s) + 1);
+		BA(0).m_Contour.resize((e - s) + 1, 2);
+		BA(0).m_Signature.resize((e - s) + 1, 2);
+		BA(0).m_Contour.col(0) = contour.col(0).segment(s, (e - s) + 1);
+		BA(0).m_Contour.col(1) = contour.col(1).segment(s, (e - s) + 1);
+		BA(0).m_Signature.col(0) = signature.col(0).segment(s, (e - s) + 1);
+		BA(0).m_Signature.col(1) = signature.col(1).segment(s, (e - s) + 1);
 		Pt2Arc.segment(s, (e - s) + 1).setZero();
 	}
 
@@ -144,10 +145,12 @@ void BivertexArcDecomposition(CPiece& piece, double delta0, double delta1/*, BAT
 		s = BAIndices(c1, 0);
 		e = BAIndices(c1, 1);
 
-		BA(c1).m_Contour.x = contour.x.segment(s, (e - s) + 1);
-		BA(c1).m_Contour.y = contour.y.segment(s, (e - s) + 1);
-		BA(c1).m_Signature.x = signature.x.segment(s, (e - s) + 1);
-		BA(c1).m_Signature.y = signature.y.segment(s, (e - s) + 1);
+		BA(c1).m_Contour.resize((e - s) + 1, 2);
+		BA(c1).m_Signature.resize((e - s) + 1, 2);
+		BA(c1).m_Contour.col(0) = contour.col(0).segment(s, (e - s) + 1);
+		BA(c1).m_Contour.col(1) = contour.col(1).segment(s, (e - s) + 1);
+		BA(c1).m_Signature.col(0) = signature.col(0).segment(s, (e - s) + 1);
+		BA(c1).m_Signature.col(1) = signature.col(1).segment(s, (e - s) + 1);
 		Pt2Arc.segment(s, (e - s) + 1).setConstant(c1);
 	}
 }
@@ -163,22 +166,22 @@ PlotDecomposition(CPiece& piece, int iPiece)
 	const int PlotSize = 900;
 
 	Mat drawing = Mat::zeros(PlotSize, PlotSize, CV_8UC3);
-	int sz = (int) BA.size();
+	int sz = (int) BA.rows();
 	Curve& contour = piece.m_Contour;
 
 	// Determine the extents of all the arcs
 	
-	double xMax = contour.x.maxCoeff(), xMin = contour.x.minCoeff(), yMax = contour.y.maxCoeff(), yMin = contour.y.minCoeff();
+	double xMax = contour.col(0).maxCoeff(), xMin = contour.col(0).minCoeff(), yMax = contour.col(1).maxCoeff(), yMin = contour.col(1).minCoeff();
 
 	double xDiff = xMax - xMin;
 	double yDiff = yMax - yMin;
 
-	int pcsz = (int) piece.m_Contour.size();
+	int pcsz = (int) piece.m_Contour.rows();
 
 	for (int i = 0; i < pcsz; i++)
 	{
-		int X = (int)((PlotSize-1) * (piece.m_Contour.x[i] - xMin) / xDiff);
-		int Y = (int)((PlotSize-1) * (piece.m_Contour.y[i] - yMin) / yDiff);
+		int X = (int)((PlotSize-1) * (piece.m_Contour(i, 0) - xMin) / xDiff);
+		int Y = (int)((PlotSize-1) * (piece.m_Contour(i, 1) - yMin) / yDiff);
 
 		if (X < 0) X = 0;
 		if (Y < 0) Y = 0;
@@ -189,17 +192,17 @@ PlotDecomposition(CPiece& piece, int iPiece)
 
 	for (int i = 0; i < sz; i++)
 	{
-		double max = BA(i).m_Contour.x.maxCoeff();
-		double min = BA(i).m_Contour.x.minCoeff();
+		double Max = BA(i).m_Contour.col(0).maxCoeff();
+		double Min = BA(i).m_Contour.col(0).minCoeff();
 
-		xMax = max(xMax, max);
-		xMin = min(xMin, min);
+		xMax = max(xMax, Max);
+		xMin = min(xMin, Min);
 
-		max = BA(i).m_Contour.y.maxCoeff();
-		min = BA(i).m_Contour.y.minCoeff();
+		Max = BA(i).m_Contour.col(1).maxCoeff();
+		Min = BA(i).m_Contour.col(1).minCoeff();
 
-		yMax = max(yMax, max);
-		yMin = min(yMin, min);
+		yMax = max(yMax, Max);
+		yMin = min(yMin, Min);
 	}
 
 	xDiff = xMax - xMin;
@@ -211,14 +214,14 @@ PlotDecomposition(CPiece& piece, int iPiece)
 	for (int i = 0; i < sz; i++)
 	{
 		Curve& contour = BA(i).m_Contour;
-		int ctsz = (int) contour.size();
+		int ctsz = (int) contour.rows();
 
 		for (int j = 0; j < ctsz-1; j++)
 		{
-			int X1 = (int)((PlotSize-1) * (contour.x[j] - xMin) / xDiff);
-			int Y1 = (int)((PlotSize-1) * (contour.y[j] - yMin) / yDiff);
-			int X2 = (int)((PlotSize-1) * (contour.x[(j+1)%ctsz] - xMin) / xDiff);
-			int Y2 = (int)((PlotSize-1) * (contour.y[(j+1)%ctsz] - yMin) / yDiff);
+			int X1 = (int)((PlotSize - 1) * (contour(j, 0) - xMin) / xDiff);
+			int Y1 = (int)((PlotSize - 1) * (contour(j, 1) - yMin) / yDiff);
+			int X2 = (int)((PlotSize - 1) * (contour((j + 1) % ctsz, 0) - xMin) / xDiff);
+			int Y2 = (int)((PlotSize - 1) * (contour((j + 1) % ctsz, 1) - yMin) / yDiff);
 
 			if (X1 < 0) X1 = 0;
 			if (Y1 < 0) Y1 = 0;
@@ -230,11 +233,11 @@ PlotDecomposition(CPiece& piece, int iPiece)
 		redChan ^= 255;
 		greenChan ^= 255;
 
-		int X = (int)((PlotSize - 1) * (contour.x[0] - xMin) / xDiff);
-		int Y = (int)((PlotSize - 1) * (contour.y[0] - yMin) / yDiff);
+		int X = (int)((PlotSize - 1) * (contour(0, 0) - xMin) / xDiff);
+		int Y = (int)((PlotSize - 1) * (contour(0, 1) - yMin) / yDiff);
 
 		char buff[1000];
-		sprintf_s(buff, sizeof(buff), "(%d  %d)", i, (int) contour.size());
+		sprintf_s(buff, sizeof(buff), "(%d  %d)", i, (int) contour.rows());
 		cv::putText(drawing, buff, Point(Y, X), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255, 255, 255), 2);
 	}
 
@@ -253,12 +256,12 @@ PlotKappasDecomposition(CPiece& piece, double delta0, int iPiece)
 
 	const int PlotSize = 900;
 
-	VectorXd norm = piece.m_Signature.kappas;
-	int sz = (int)norm.size();
+	VectorXd norm = piece.m_Signature.col(1);
+	int sz = (int)norm.rows();
 
 	double min, max;
 
-	MyNorm(norm, min, max);
+	MyNormv(norm, min, max);
 
 	Mat drawing = Mat::zeros(Size(PlotSize, PlotSize), CV_8UC3);
 

@@ -5,6 +5,7 @@
 #include "Utilities.h"
 #include "Jigsaw Solver.h"
 #include "Lock.h"
+#include "CProgress.h"
 
 using namespace Eigen;
 using namespace std;
@@ -78,17 +79,23 @@ void CPScore::Display(size_t nRow, size_t nCol)
 static double
 _SignatureSimilarity(const Curve& sig1, const Curve& sig2, double D)
 {
-	int sz1 = (int) sig1.size();
-	int sz2 = (int) sig2.size();
+	int sz1 = (int) sig1.rows();
+	int sz2 = (int) sig2.rows();
 
 	VectorXd h = VectorXd::Zero(sz1);
 
 	// Equations 3.4, 3.5
 
+	// Calculate strengths of correspondence
+	
 	for (int i = 0; i < sz1; i++)
 	{
-		Point2d t = sig1[i];
-		VectorXd d = ((sig2.kappa.array() - t.x).array().square() + (sig2.kappas.array()-t.y).array().square()).sqrt();
+		Matrix<double, 1, 2> t = sig1.row(i);
+		VectorXd d = (sig2.rowwise() - t).array().square().rowwise().sum().sqrt();
+		//VectorXd d = ((sig2.col(0) - t.x).array().square() + (sig2.col(1)-t.y).array().square()).sqrt();
+
+		// 	Calculate and sum h over j
+
 		for (int j = 0; j < sz2; j++)
 		{
 			if (d[j] < D)
@@ -104,7 +111,7 @@ _SignatureSimilarity(const Curve& sig1, const Curve& sig2, double D)
 
 	// Equation 3.10
 
-	VectorXd kPow = sig1.kappa.array().pow(params.alpha);
+	VectorXd kPow = sig1.col(0).array().pow(params.alpha);
 	VectorXd Prod = (pPoint.array() * kPow.array());
 	double num = Prod.sum();
 	double den = kPow.sum();
@@ -153,12 +160,13 @@ Curve
 TransformCurve(const Curve& points, const GTransform& trans)
 {
 	Curve result;
+	result.resizeLike(points);
 
 	double c = cos(trans.theta);
 	double s = sin(trans.theta);
 
-	result.x = (points.x*c - points.y*s).array() + trans.dx;
-	result.y = (points.x*s + points.y*c).array() + trans.dy;
+	result.col(0) = (points.col(0)*c - points.col(1)*s).array() + trans.dx;
+	result.col(1) = (points.col(0)*s + points.col(1)*c).array() + trans.dy;
 
 	return result;
 }
@@ -211,32 +219,32 @@ static double
 Rigid_Motion_Angle(const Curve& curve1, const Curve& curve2, const Curve& signature1, const Curve& signature2, double beta)
 {
 	VectorXd dx1, dx2, dy1, dy2;
-	dx1.resizeLike(curve1.x);
-	dx2.resizeLike(curve2.x);
-	dy1.resizeLike(curve1.y);
-	dy2.resizeLike(curve2.y);
+	dx1.resizeLike(curve1.col(0));
+	dx2.resizeLike(curve2.col(0));
+	dy1.resizeLike(curve1.col(1));
+	dy2.resizeLike(curve2.col(1));
 
-	int sz1 = (int)dx1.size();
-	int sz2 = (int)dx2.size();
+	int sz1 = (int)dx1.rows();
+	int sz2 = (int)dx2.rows();
 
-	dx1.block(1, 0, sz1 - 2, 1) = curve1.x.topRows(sz1 - 2) - curve1.x.bottomRows(sz1 - 2);
-	dx2.block(1, 0, sz2 - 2, 1) = curve2.x.topRows(sz2 - 2) - curve2.x.bottomRows(sz2 - 2);
-	dy1.block(1, 0, sz1 - 2, 1) = curve1.y.topRows(sz1 - 2) - curve1.y.bottomRows(sz1 - 2);
-	dy2.block(1, 0, sz2 - 2, 1) = curve2.y.topRows(sz2 - 2) - curve2.y.bottomRows(sz2 - 2);
+	dx1.block(1, 0, sz1 - 2, 1) = curve1.col(0).topRows(sz1 - 2) - curve1.col(0).bottomRows(sz1 - 2);
+	dx2.block(1, 0, sz2 - 2, 1) = curve2.col(0).topRows(sz2 - 2) - curve2.col(0).bottomRows(sz2 - 2);
+	dy1.block(1, 0, sz1 - 2, 1) = curve1.col(1).topRows(sz1 - 2) - curve1.col(1).bottomRows(sz1 - 2);
+	dy2.block(1, 0, sz2 - 2, 1) = curve2.col(1).topRows(sz2 - 2) - curve2.col(1).bottomRows(sz2 - 2);
 
 	dx1[0] = dx1[1]; dx1[sz1 - 1] = dx1[sz1 - 2];
 	dx2[0] = dx2[1]; dx2[sz2 - 1] = dx2[sz2 - 2];
 	dy1[0] = dy1[1]; dy1[sz1 - 1] = dy1[sz1 - 2];
 	dy2[0] = dy2[1]; dy2[sz2 - 1] = dy2[sz2 - 2];
 
-	dx1.array() *= signature1.kappas.array();
-	dy1.array() *= signature1.kappas.array();
+	dx1.array() *= signature1.col(1).array();
+	dy1.array() *= signature1.col(1).array();
 
-	dx2.array() *= signature2.kappas.array();
-	dy2.array() *= signature2.kappas.array();
+	dx2.array() *= signature2.col(1).array();
+	dy2.array() *= signature2.col(1).array();
 
-	VectorXd ks1pow = signature1.kappas.array().pow(beta);
-	VectorXd ks2pow = signature2.kappas.array().pow(beta);
+	VectorXd ks1pow = signature1.col(1).array().pow(beta);
+	VectorXd ks2pow = signature2.col(1).array().pow(beta);
 	double ks1powsum = ks1pow.sum();
 	double ks2powsum = ks2pow.sum();
 
@@ -301,17 +309,17 @@ OUTPUTS
 static void
 Rigid_Motion_Translation(GTransform& G, const Curve& curve1, const Curve& curve2, const Curve& signature1, const Curve& signature2, double theta, double beta)
 {
-	VectorXd ks1pow = signature1.kappas.array().pow(beta);
-	VectorXd ks2pow = signature2.kappas.array().pow(beta);
+	VectorXd ks1pow = signature1.col(1).array().pow(beta);
+	VectorXd ks2pow = signature2.col(1).array().pow(beta);
 	double ks1powsum = ks1pow.sum();
 	double ks2powsum = ks2pow.sum();
 
 	// Calculate center of mass weighted by kappa_s
 
-	double cm1x = (curve1.x.array() * ks1pow.array()).sum() / ks1powsum;
-	double cm1y = (curve1.y.array() * ks1pow.array()).sum() / ks1powsum;
-	double cm2x = (curve2.x.array() * ks2pow.array()).sum() / ks2powsum;
-	double cm2y = (curve2.y.array() * ks2pow.array()).sum() / ks2powsum;
+	double cm1x = (curve1.col(0).array() * ks1pow.array()).sum() / ks1powsum;
+	double cm1y = (curve1.col(1).array() * ks1pow.array()).sum() / ks1powsum;
+	double cm2x = (curve2.col(0).array() * ks2pow.array()).sum() / ks2powsum;
+	double cm2y = (curve2.col(1).array() * ks2pow.array()).sum() / ks2powsum;
 
 	G.dx = cm2x - cm1x * cos(theta) + cm1y * sin(theta);
 	G.dy = cm2y - cm1x * sin(theta) - cm1y * cos(theta);
@@ -455,8 +463,7 @@ CalcTranslation(CFit& fit, vector<CPlacement>& placements, vector<CTracker>& tra
 		Curve curve2 = TransformCurve(
 			Pieces[fit.m_Pieces(1)].m_Arcs(fit.m_Arcs(c3, 1)).m_Contour,
 			placements[tracker.back().m_Pc2Place[fit.m_Pieces(1)]].m_gLock);
-		curve2.x.reverseInPlace();
-		curve2.y.reverseInPlace();
+		curve2.colwise().reverseInPlace();
 
 		const Curve& sig1 = Pieces[fit.m_Pieces(0)].m_Arcs(fit.m_Arcs(c3, 0)).m_Signature;
 		Curve sig2 = Orient_Reverse(Pieces[fit.m_Pieces(1)].m_Arcs(fit.m_Arcs(c3, 1)).m_Signature);
@@ -484,18 +491,26 @@ void PlacePieces()
 
 	for (int i = 0; i < nPieces; i++)
 	{
-		Pieces[i].m_bActive = false;
+		Pieces[i].m_nActive = 0;
 	}
 
 	int piece1;							// Start with the "heaviest" piece.
 	double dummy = Weights.maxCoeff(&piece1);
 //	piece1 = 11;									// ***BUGBUG*** We compute slightly different weights than Hoff.
-	Pieces[piece1].m_bActive = true;
+	Pieces[piece1].m_nActive = 1;
 
 	Tracker.back().SetSize(nPieces);
 
 	Tracker.back().m_PlacedPieces.resize(1);
 	Tracker.back().m_PlacedPieces[0] = piece1;
+
+	Tracker.back().m_SolvedPuzzleBoundary = Pieces[piece1].m_Contour;	// Initially, the solved puzzle is just piece1's contour
+
+	Tracker.back().m_SPB_Pt2PcPt.resize(Pieces[piece1].m_Contour.rows(), 2);
+	Tracker.back().m_SPB_Pt2PcPt.col(0).setConstant(piece1);
+	for (int i = 0; i < Pieces[piece1].m_Contour.rows(); i++)
+		Tracker.back().m_SPB_Pt2PcPt(i, 1) = i;
+
 
 	for (int i = 0; i < nPieces; i++)
 	{
@@ -505,8 +520,8 @@ void PlacePieces()
 		for (int j = 0; j < Pieces[i].m_Arcs.size(); j++)
 			Tracker.back().m_ActiveArcs[i][j] = j;
 
-		Tracker.back().m_ActivePoints[i].resize(Pieces[i].m_Contour.size());
-		for (int j = 0; j < Pieces[i].m_Contour.size(); j++)
+		Tracker.back().m_ActivePoints[i].resize(Pieces[i].m_Contour.rows());
+		for (int j = 0; j < Pieces[i].m_Contour.rows(); j++)
 			Tracker.back().m_ActivePoints[i][j] = j;
 
 		Tracker.back().m_Pc2Place[i] = (i == piece1) - 1;
@@ -516,15 +531,21 @@ void PlacePieces()
 
 	Placements.emplace_back(piece1, Eigen::Vector4d(), GTransform(), CFit());
 	int c1 = (int)Placements.size();
+	int nRPc = (int) nPieces - c1 + 1;
+
 	int j = 0;																// Parameter sequence index
 
 // c1	counts # of placed pieces
 // c2	counts unplaced pieces.  Index into tracker.m_RemainingPieces
 // c3	counts placed pieces.  Index into tracker.m_PlacedPieces
 
+	Progress.RestartReport(PROGRESS_PLACING, true);
+
 	while (c1 < nPieces)
 	{
 		vector<CFit> Fits;
+
+		Progress.RestartReport(PROGRESS_COMPARING, true);
 
 		for (int c2 = 0; c2 < (nPieces - c1); c2++)
 		{
@@ -589,8 +610,8 @@ void PlacePieces()
 							tArcs.resize(0);
 							tArcs.push_back(Vector2i(nArc1, nArc2));
 
-							VectorXi& aarcs1 = Tracker.back().m_ActiveArcs[nPiece1];
-							VectorXi& aarcs2 = Tracker.back().m_ActiveArcs[nPiece2];
+							vector<int>& aarcs1 = Tracker.back().m_ActiveArcs[nPiece1];
+							vector<int>& aarcs2 = Tracker.back().m_ActiveArcs[nPiece2];
 							size_t sz1 = aarcs1.size();
 							size_t sz2 = aarcs2.size();
 
@@ -598,15 +619,15 @@ void PlacePieces()
 
 							int c6 = 1;													// Offset, not an index
 
-							while (PScores(nPiece1, nPiece2)(aarcs1((c4 + c6) % sz1), aarcs2((c5 - c6 + sz2) % sz2)) >= params.seq[j].p0)
+							while (PScores(nPiece1, nPiece2)(aarcs1[(c4 + c6) % sz1], aarcs2[(c5 - c6 + sz2) % sz2]) >= params.seq[j].p0)
 							{
-								if (abs(aarcs1((c4 + c6) % sz1) - aarcs1((c4 + c6 - 1) % sz1)) > 1
-									|| abs(aarcs2((c5 - c6 + sz2) % sz2) - aarcs2((c5 - c6 + 1 + sz2) % sz2)) > 1)
+								if (abs(aarcs1[(c4 + c6) % sz1] - aarcs1[(c4 + c6 - 1) % sz1]) > 1
+									|| abs(aarcs2[(c5 - c6 + sz2) % sz2] - aarcs2[(c5 - c6 + 1 + sz2) % sz2]) > 1)
 									break;
 								else
 								{
-									int a1 = (aarcs1(c4) + c6) % included.rows();
-									int a2 = (int)((aarcs2(c5) - c6 + included.cols()) % included.cols());
+									int a1 = (aarcs1[c4] + c6) % included.rows();
+									int a2 = (int)((aarcs2[c5] - c6 + included.cols()) % included.cols());
 
 									tArcs.push_back(Vector2i(a1, a2));
 									included(a1, a2) = 1;
@@ -619,15 +640,15 @@ void PlacePieces()
 
 							int c7 = 1;
 
-							while (PScores(nPiece1, nPiece2)(aarcs1((c4 - c7 + sz1) % sz1), aarcs2((c5 + c7) % sz2)) >= params.seq[j].p0)
+							while (PScores(nPiece1, nPiece2)(aarcs1[(c4 - c7 + sz1) % sz1], aarcs2[(c5 + c7) % sz2]) >= params.seq[j].p0)
 							{
-								if (abs(aarcs1((c4 - c7 + sz1) % sz1) - aarcs1((c4 - c7 + 1 + sz1) % sz1)) > 1
-									|| abs(aarcs2((c5 + c7) % sz2) - aarcs2((c5 + c7 - 1) % sz2)) > 1)
+								if (abs(aarcs1[(c4 - c7 + sz1) % sz1] - aarcs1[(c4 - c7 + 1 + sz1) % sz1]) > 1
+									|| abs(aarcs2[(c5 + c7) % sz2] - aarcs2[(c5 + c7 - 1) % sz2]) > 1)
 									break;
 								else
 								{
-									int a1 = (int)((aarcs1(c4) - c7 + included.rows()) % included.rows());
-									int a2 = (int)((aarcs2(c5) + c7) % included.cols());
+									int a1 = (int)((aarcs1[c4] - c7 + included.rows()) % included.rows());
+									int a2 = (int)((aarcs2[c5] + c7) % included.cols());
 
 									tArcs.insert(tArcs.begin(), Vector2i(a1, a2));
 									included(a1, a2) = 1;
@@ -666,6 +687,9 @@ void PlacePieces()
 						}
 					}
 				}
+				Progress[PROGRESS_COMPARING].m_Percent = 1.0*(c1*c2 + c3) / (c1*(nPieces - c1));
+				Progress.UpdateReport();
+				
 			}
 		}
 		
@@ -677,13 +701,21 @@ void PlacePieces()
 		});
 
 		int c2 = 0;
+		bool bProgress = false;
+
+		Progress.RestartReport(PROGRESS_CHECKING, true);
+
+		// Check fits
 
 		while (c2 < Fits.size())
 		{
 			CFit& fitc2 = Fits[c2];
 			Vector2i& piecesc2 = fitc2.m_Pieces;
 
-			if (Pieces[piecesc2(1)].m_bActive &&
+//        if(pieces(Fits(c2).Pieces(1, 2)).Active && ismember(Fits(c2).Pieces(1, 1), tracker(end).RPc) &&
+//			~any(ismember(Fits(c2).Arcs(:, 2), tracker(end).IArcs{Fits(c2).Pieces(1, 2)})))
+
+			if (Pieces[piecesc2(1)].m_nActive &&
 				IsMember(piecesc2(0), Tracker.back().m_RemainingPieces) &&
 				!AnyMatch(fitc2.m_Arcs.col(1), Tracker.back().m_InactiveArcs[piecesc2(1)]))
 			{
@@ -708,8 +740,7 @@ void PlacePieces()
 						Curve curve2 = TransformCurve(
 							Pieces[piecesc2(1)].m_Arcs(fitc2.m_Arcs(c3, 1)).m_Contour,
 							Placements[Tracker.back().m_Pc2Place[piecesc2(1)]].m_gLock);
-						curve2.x.reverseInPlace();
-						curve2.y.reverseInPlace();
+						curve2.colwise().reverseInPlace();
 
 						const Curve& sig1 = Pieces[piecesc2(0)].m_Arcs(fitc2.m_Arcs(c3, 0)).m_Signature;
 						Curve sig2 = Orient_Reverse(Pieces[piecesc2(1)].m_Arcs(fitc2.m_Arcs(c3, 1)).m_Signature);
@@ -805,63 +836,233 @@ void PlacePieces()
 				}
 				else
 				{
-					Lock(fitc2.m_gFit, Pieces[fitc2.m_Pieces(0,0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary, j);
+
+					Indices tPiecePtIcs_3, tPiecePtIcs;
+					GTransform gLock;
+					Lock(fitc2.m_gFit, Pieces[fitc2.m_Pieces(0,0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary, 
+						gLock, params.seq[j].K3, tPiecePtIcs_3, Tracker.back().m_SP_Bdry_PtIcs_3, tPiecePtIcs, Tracker.back().m_SP_Bdry_PtIcs);
+
+					// Compute Scores
+
+					double q1 = 1.0 * Tracker.back().m_SP_Bdry_PtIcs_3.size() / Tracker.back().m_SP_Bdry_PtIcs.size();
+					double q2 = 0;
+					int tn = (int) tPiecePtIcs_3.size();
+					for (int c3 = 0; c3 < tn; c3++)
+					{
+						int c3p1 = (c3 + 1) % tn;
+						int diff = abs(tPiecePtIcs_3[c3p1] - tPiecePtIcs_3[c3]);
+						if (diff == 1 || diff == (Pieces[piecesc2[0]].m_Contour).size() - 1)
+						{
+							q2 += (Pieces[piecesc2[0]].m_Contour.row(tPiecePtIcs_3[c3p1]) - Pieces[piecesc2[0]].m_Contour.row(tPiecePtIcs_3[c3])).norm();
+						}
+					}
+					q2 /= AverageLength;
+					auto q3 = Gather(Pieces[piecesc2[0]].m_Signature, tPiecePtIcs_3).col(0).array().abs().sum()/(Dkappa*AverageSize);
+						
+					// Update progress report
+
+					Progress[PROGRESS_CHECKING].m_Percent = 1.0*c2 / Fits.size();
+					Progress.UpdateReport();
+
+					// If scores are high enough, place the piece
+
+					if ((params.eta1*q1 + params.eta2 * q3 > params.Q1 || q2 > params.Q2Star) && q2 > params.Q2 && q3 > params.Q3)
+					{
+						// Add new placement to placements variable
+							
+						Placements[c1].m_Score << q1, q2, q3, params.eta1*q1 + params.eta2 * q3;
+						Placements[c1].m_nPiece = fitc2.m_Pieces[0];
+						Placements[c1].m_gLock = gLock;
+						Placements[c1].m_Fit = fitc2;
+
+						// Update tracker variable
+
+						Tracker.push_back(Tracker.back());
+						Tracker.back().m_Pc2Place[Placements[c1].m_nPiece] = c1;
+
+						// Mark arcs / points as used or remaining and introduce neighbors / activate
+
+						vector<int>& inactive = Tracker.back().m_InactiveArcs[piecesc2[0]];
+
+						for (int c3 = 0; c3 < tPiecePtIcs.size(); c3++)
+						{
+							auto arcno = Pieces[piecesc2[0]].m_Pt2Arc(tPiecePtIcs[c3]);
+							if (arcno)
+								inactive.push_back(arcno);
+						}
+
+						Placements[c1].m_Neighbors.resize(0);
+						Pieces[fitc2.m_Pieces(0)].m_nActive = 2;
+
+						vector<int>& neighbors = Placements[c1].m_Neighbors;
+
+						for (int c3 = 0; c3 < Tracker.back().m_SP_Bdry_PtIcs.size(); c3++)
+						{
+							int SPIc3 = Tracker.back().m_SP_Bdry_PtIcs[c3];
+
+							// Introduce new neighbors
+
+							int newNeighbor = Tracker.back().m_SPB_Pt2PcPt(SPIc3, 0);
+
+							if (!IsMember(newNeighbor, neighbors))
+							{
+								neighbors.push_back(newNeighbor);
+								Pieces[newNeighbor].m_nActive = 2;
+
+								vector<int>& toSetActive = Placements[Tracker[c1].m_Pc2Place[newNeighbor]].m_Neighbors;
+								for (int i = 0; i < toSetActive.size(); i++)
+									Pieces[toSetActive[i]].m_nActive = 2;
+
+								toSetActive.push_back(fitc2.m_Pieces(0));
+
+							}
+
+							// Mark arcs as inactive
+
+							auto arc = Pieces[newNeighbor].m_Pt2Arc(Tracker.back().m_SPB_Pt2PcPt(SPIc3, 1), 1);
+
+							if (arc)
+							{
+								Tracker.back().m_InactiveArcs[newNeighbor].push_back(arc);
+							}
+
+							// Mark points as inactive
+
+							Tracker.back().m_InactivePoints[newNeighbor].push_back(Tracker.back().m_SPB_Pt2PcPt(SPIc3, 1));
+
+						}
+
+						auto& fitc2piece = fitc2.m_Pieces(0);
+
+						Tracker.back().m_InactivePoints[fitc2piece] = tPiecePtIcs;
+
+						// Note: Lock returns tPiecePtIcs in sorted order.  Convenient!
+						//
+						// ActivePoints is the complement of the InactivePoints
+
+						vector<int>& activePoints = Tracker.back().m_ActivePoints[fitc2piece];
+
+						for (int i = 0; i < Pieces[fitc2piece].m_Contour.rows(); i++)
+							activePoints[i] = i;
+						for (int i = (int) tPiecePtIcs.size() - 1; i >= 0; i--)
+							activePoints.erase(activePoints.begin() + tPiecePtIcs[i]);
+
+						// Same with arcs, except might not be sorted and will have duplicates!
+
+						vector<int>& activeArcs = Tracker.back().m_ActiveArcs[fitc2piece];
+
+						AllExcept(activeArcs, Pieces[fitc2piece].m_Arcs.rows(), Tracker.back().m_InactiveArcs[fitc2piece]);
+
+						//for (int i = 0; i < Pieces[fitc2piece].m_Arcs.rows(); i++)
+						//	activeArcs[i] = i;
+						//vector<int> inactiveArcs = Tracker.back().m_InactiveArcs[fitc2piece];
+						//auto icmp = [](const void* p1, const void* p2) { return *(int*)p1 - *(int*)p2; };
+						//qsort(inactiveArcs.data(), inactiveArcs.size(), sizeof(int), icmp);
+						//auto ucmp = [](int i, int j) { return i == j; };
+						//unique(inactiveArcs.begin(), inactiveArcs.end(), ucmp);
+						//for (int i = inactiveArcs.size() - 1; i >= 0; i--)
+						//	activeArcs.erase(activeArcs.begin() + inactiveArcs[i]);
+
+						for (int c3 = 0; c3 < c1 - 1; c3++)
+						{
+							int placedPiece = Tracker.back().m_PlacedPieces[c3];
+							vector<int>& activeArcs = Tracker.back().m_ActiveArcs[placedPiece];
+							vector<int>& activePoints = Tracker.back().m_ActivePoints[placedPiece];
+
+							// Calculate AArcs
+
+							AllExcept(activeArcs, Pieces[placedPiece].m_Arcs.size(), Tracker.back().m_InactiveArcs[placedPiece]);
+
+							// Calculate APts
+
+							AllExcept(activePoints, Pieces[placedPiece].m_Contour.rows(), Tracker.back().m_InactivePoints[placedPiece]);
+						}
+
+						// Calculate new Fragment
+
+						// Remove elements from the solved puzzle boundary
+
+						Tracker.back().m_SolvedPuzzleBoundary = RemoveElements(Tracker.back().m_SolvedPuzzleBoundary, Tracker.back().m_SP_Bdry_PtIcs);
+
+						Curve tPiece = Pieces[fitc2.m_Pieces(0)].m_Contour;
+						vector<int> tTrack;
+						AllExcept(tTrack, tPiece.size(), tPiecePtIcs);
+						tPiece = RemoveElements(tPiece, tPiecePtIcs);
+
+						Append(Tracker.back().m_SolvedPuzzleBoundary, tPiece);
+
+						//Curve joined(Tracker.back().m_SolvedPuzzleBoundary.rows() + tPiece.rows(), 2);
+						//joined << Tracker.back().m_SolvedPuzzleBoundary, TransformCurve(tPiece, gLock);
+						//Tracker.back().m_SolvedPuzzleBoundary = joined;
+
+						Tracker.back().m_SPB_Pt2PcPt = RemoveElements(Tracker.back().m_SPB_Pt2PcPt, Tracker.back().m_SP_Bdry_PtIcs);
+
+						MatrixX2i tTrackPlus(tTrack.size(), 2);
+						tTrackPlus.col(0).setConstant(Placements[c1].m_nPiece);
+
+						for (int i = 0; i < tTrack.size(); i++)
+						{
+							tTrackPlus(i, 1) = tTrack[i];
+						}
+
+						Append(Tracker.back().m_SPB_Pt2PcPt, tTrackPlus);
+
+						// Mark pieces as used or remaining
+
+						Tracker.back().m_PlacedPieces.push_back(Placements[c1].m_nPiece);
+						AllExcept(Tracker.back().m_RemainingPieces, nPieces, Tracker.back().m_PlacedPieces);
+
+						Progress[PROGRESS_PLACING] = (int) (c1 - nPieces + nRPc) / nRPc;
+						Progress.UpdateReport();
+
+						bProgress = true;
+						c1++;
+					}
 				}
-
-/*
-
-
-
-*/
-
 			}
 		}
+		
+		Progress.RestartReport(PROGRESS_CHECKING, false);
+		Progress[PROGRESS_COMPARING] = 0;
+		Progress.UpdateReport();
+
+		// If the algorithm has dead - ended, increase depth in paraemter sequence
+		// or terminate algorithm if this is not possible
+
+		if (!bProgress)
+		{
+			if (j < params.jMax)
+			{
+				j++;
+
+				// Activate pieces
+
+				for (int c4 = 0; c4 < Tracker.back().m_RemainingPieces.size(); c4++)
+				{
+					Pieces[Tracker.back().m_PlacedPieces[c4]].m_nActive = 1;
+				}
+			}
+			else
+			{
+				// ***BUGBUG*** Dead End!  Also, plot!
+				__debugbreak();
+				return;
+			}
+		}
+		else
+		{
+			j = 1;
+			// Deactivate pieces
+			for (int c4 = 0; c4 < Tracker.back().m_PlacedPieces.size(); c4++)
+			{
+				Pieces[Tracker.back().m_PlacedPieces[c4]].m_nActive = 
+					max(0, Pieces[Tracker.back().m_PlacedPieces[c4]].m_nActive - 1);
+			}
+		}
+
+		/*
+		*/
 	}
 }
 
 
-//for (int c3 = 0; c3 < fitc2.m_Arcs.rows(); c3++)
-//{
-//	const Curve& curve1 = Pieces[piecesc2(0)].m_Arcs(fitc2.m_Arcs(c3, 0)).m_Contour;
-//	Curve curve2 = TransformCurve(
-//		Pieces[piecesc2(1)].m_Arcs(fitc2.m_Arcs(c3, 1)).m_Contour,
-//		Placements[Tracker.back().m_Pc2Place[piecesc2(1)]].m_gLock);
-//	curve2.x.reverseInPlace();
-//	curve2.y.reverseInPlace();
-
-//	const Curve& sig1 = Pieces[piecesc2(0)].m_Arcs(fitc2.m_Arcs(c3, 0)).m_Signature;
-//	Curve sig2 = Orient_Reverse(Pieces[piecesc2(1)].m_Arcs(fitc2.m_Arcs(c3, 1)).m_Signature);
-
-//	Rigid_Motion_Translation(fitc2.m_ArcTrans[c3],
-//		curve1,
-//		curve2,
-//		sig1,
-//		sig2, fitc2.m_gFit.theta, params.beta);
-//}
-
-//fitc2.m_Score = muScore(fitc2.m_ArcTrans, Dx, Dy, params.C2);
-//CalcMeanTranslation(fitc2);
-
-
-
-						//for (int c4 = 0; c4 < fit.m_Size; c4++)
-						//{
-						//	const Curve& curve1 = Pieces[fit.m_Pieces(0)].m_Arcs(fit.m_Arcs(c4, 0)).m_Contour;
-						//	Curve curve2 = TransformCurve(
-						//		Pieces[fit.m_Pieces[1]].m_Arcs(fit.m_Arcs(c4, 1)).m_Contour,
-						//		Placements[Tracker.back().m_Pc2Place[fit.m_Pieces[1]]].m_gLock);
-						//	curve2.x.reverseInPlace();
-						//	curve2.y.reverseInPlace();
-
-						//	const Curve& sig1 = Pieces[fit.m_Pieces[0]].m_Arcs(fit.m_Arcs(c4, 0)).m_Signature;
-						//	Curve sig2 = Orient_Reverse(Pieces[fit.m_Pieces[1]].m_Arcs(fit.m_Arcs(c4, 1)).m_Signature);
-
-						//	Rigid_Motion_Translation(fit.m_ArcTrans[c4],
-						//		curve1,
-						//		curve2,
-						//		sig1,
-						//		sig2, fit.m_gFit.theta, params.beta);
-						//}
-
-						//fit.m_Score = muScore(fit.m_ArcTrans, Dx, Dy, params.C2);
-						//CalcMeanTranslation(fit);

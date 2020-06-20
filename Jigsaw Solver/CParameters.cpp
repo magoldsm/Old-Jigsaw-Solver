@@ -19,9 +19,10 @@ static int defaultK3[] = { 707, 2000 };
 
 #define	LAMBDA0		30
 #define	LAMBDA1		10
-#define	Q1			900
-#define	Q2			200
-#define	Q3			0
+#define	Q_1			900
+#define	Q_2			200
+#define	Q_2STAR		300
+#define	Q_3			0
 #endif // SMALL_PUZZLE
 
 #ifdef MEDIUM_PUZZLE
@@ -34,9 +35,10 @@ static int defaultK3[] = { 1118, 2000 };
 
 #define	LAMBDA0		20
 #define	LAMBDA1		10
-#define	Q1			900
-#define	Q2			200
-#define	Q3			0
+#define	Q_1			900
+#define	Q_2			200
+#define	Q_2STAR		300
+#define	Q_3			0
 #endif // MEDIUM_PUZZLE
 
 #ifdef LARGE_PUZZLE
@@ -49,9 +51,10 @@ static int defaultK3[] = { 707 };
 
 #define	LAMBDA0		20
 #define	LAMBDA1		8
-#define	Q1			976
-#define	Q2			240
-#define	Q3			29
+#define	Q_1			976
+#define	Q_2			240
+#define	Q_2STAR		300
+#define	Q_3			29
 #endif // LARGE_PUZZLE
 
 CParameters::CParameters()
@@ -71,6 +74,13 @@ CParameters::CParameters()
 	K2 = ::GetProfileInt(APP, "K2", 4);
 	K4 = ::GetProfileInt(APP, "K3", 500)/1000.0;
 	epsilon = ::GetProfileInt(APP, "epsilon", 100) / 1000000.0;
+	eta1 = ::GetProfileInt(APP, "eta1", 1000) / 1000.0;
+	eta2 = ::GetProfileInt(APP, "eta2", 1500) / 1000.0;
+	Q1 = ::GetProfileInt(APP, "Q1", Q_1)/1000.0;
+	Q2 = ::GetProfileInt(APP, "Q2", Q_2) / 1000.0;
+	Q2Star = ::GetProfileInt(APP, "Q2Star", Q_2STAR) / 1000.0;
+	Q3 = ::GetProfileInt(APP, "Q3", Q_3) / 1000.0;
+	K2 = ::GetProfileInt(APP, "K2", 4);
 	jMax = ::GetProfileInt(APP, "jMax", 3);
 
 	int nParams = ::GetProfileInt(APP, "nParams", N_PARAMS);

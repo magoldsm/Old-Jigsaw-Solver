@@ -21,6 +21,12 @@ public:
 	double K2;
 	double K4;
 	double epsilon;
+	double eta1;
+	double eta2;
+	double Q1;
+	double Q2;
+	double Q2Star;
+	double Q3;
 
 	struct ParameterSequence
 	{

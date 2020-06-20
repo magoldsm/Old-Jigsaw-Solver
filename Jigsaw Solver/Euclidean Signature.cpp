@@ -15,10 +15,10 @@ CalcEuclideanSignature(CPiece& piece, VectorXd smoothVec, VectorXd d1Vec, Vector
 	Curve& contour = piece.m_Contour;
 	EuclideanSignature& sig = piece.m_Signature;
 
-	int sz = (int)contour.x.size();
-	sig.resize(sz);
+	int sz = (int)contour.rows();
+	sig.resize(sz, 2);
 
-	VectorXd /*xraw(sz), yraw(sz), */x(sz), y(sz), dx(sz), dy(sz), d2x(sz), d2y(sz), Area(sz), d1mag(sz);
+	VectorXd /*xraw(sz), yraw(sz), */x(sz), y(sz), dx(sz), dy(sz), d2x(sz), d2y(sz), Area(sz), d1mag(sz), dkappa(sz);
 
 //#define HOFF
 	/*
@@ -90,15 +90,15 @@ signature =  [kappa kappad];
 
 	if (bPlot) Plot("Area", Area);
 
-	sig.kappa = 4 * Area.array() / (a.array()*b.array() * c.array());
+	sig.col(0) = 4 * Area.array() / (a.array()*b.array() * c.array());
 
-	circShift(sig.kappa, temp, -1);
-	sig.kappas = temp - sig.kappa;
-	circShift(sig.kappas, temp, 1);
-	sig.kappas = 1.5*(sig.kappas.array() / (a + b + c).array() + temp.array() / (a + b + g).array());
+	circShift(sig.col(0), temp, -1);
+	sig.col(1) = temp - sig.col(0);
+	circShift(sig.col(1), temp, 1);
+	sig.col(1) = 1.5*(sig.col(1).array() / (a + b + c).array() + temp.array() / (a + b + g).array());
 
-	if (bPlot) Plot("kappa", sig.kappa);
-	if (bPlot) Plot("kappas", sig.kappas);
+	if (bPlot) Plot("kappa", sig.col(0));
+	if (bPlot) Plot("kappas", sig.col(1));
 
 	waitKey(0);
 
@@ -114,16 +114,16 @@ signature =  [kappa kappad];
 
 	// Smooth the contour to overcome the effects of digitization.
 
-	Convolve(contour.x, x, smoothVec);
-	Convolve(contour.y, y, smoothVec);
+	Convolve(contour.col(0), x, smoothVec);
+	Convolve(contour.col(1), y, smoothVec);
 
 	// Take 1st and 2nd derivatives
 
-	Convolve(contour.x, dx, d1Vec);
-	Convolve(contour.y, dy, d1Vec);
+	Convolve(contour.col(0), dx, d1Vec);
+	Convolve(contour.col(1), dy, d1Vec);
 
-	Convolve(contour.x, d2x, d2Vec);
-	Convolve(contour.y, d2y, d2Vec);
+	Convolve(contour.col(0), d2x, d2Vec);
+	Convolve(contour.col(1), d2y, d2Vec);
 
 	bool bPlot = false;
 
@@ -139,23 +139,24 @@ signature =  [kappa kappad];
 	if (bPlot) Plot("Area", Area);
 
 	d1mag = (dx.array().square() + dy.array().square()).cube().sqrt();
-	sig.kappa = Area.array() / d1mag.array();
+	sig.col(0) = Area.array() / d1mag.array();
 
-	Convolve(sig.kappa, sig.kappas, d1Vec);
+	Convolve(sig.col(0), dkappa, d1Vec);
+	sig.col(1) = dkappa;
 
-	if (bPlot) Plot("kappa", sig.kappa);
-	if (bPlot) Plot("kappas", sig.kappas);
+	if (bPlot) Plot("kappa", sig.col(0));
+	if (bPlot) Plot("kappas", sig.col(1));
 
 	//cout << "x|y|dx|dy|d2x|d2y|Area|kappa|kappas\n";
 
 	//for (int i = 0; i < sz; i++)
 	//{
-	//	cout << contour.x[i] << "|" << contour.y[i] << "|" << dx[i] << "|" << dy[i] << "|" << d2x[i] << "|" << d2y[i] << "|" << Area[i] << "|" << sig.kappa[i] << "|" << sig.kappas[i] << endl;
+	//	cout << contour.x[i] << "|" << contour.y[i] << "|" << dx[i] << "|" << dy[i] << "|" << d2x[i] << "|" << d2y[i] << "|" << Area[i] << "|" << sig.col(0)[i] << "|" << sig.col(1)[i] << endl;
 	//}
 
 	// ***BUGBUG***  Hoff's MATLAB program does this, but I'm not sure why
 
-	//if (sig.kappa.sum() < 0)
+	//if (sig.col(0).sum() < 0)
 	//{
 	//	// H&O also flipud the piece (in our case, contour).
 
