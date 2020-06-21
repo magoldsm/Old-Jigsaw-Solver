@@ -35,3 +35,4 @@ using Curve = Eigen::Matrix<double, -1, 2>;
 #define FOR_END						}
 #endif
 
+void Solver();

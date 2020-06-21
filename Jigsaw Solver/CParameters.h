@@ -5,40 +5,47 @@ public:
 	CParameters();
 	~CParameters();
 
-	int sgOrder;
-	int sgWindow;
-	int lambda0;
-	int lambda1;
-	int alpha;
-	int beta;
-	int gamma;
-	int nu;
-	double rho;
-	int jMax;
-	int C1;
-	int C2;
-	double K1;
-	double K2;
-	double K4;
-	double epsilon;
-	double eta1;
-	double eta2;
-	double Q1;
-	double Q2;
-	double Q2Star;
-	double Q3;
+	void SaveParams();
 
-	struct ParameterSequence
-	{
-		double	p0;
-		double	m0;
-		double	mu0;
-		double	K3;
-	};
+	char m_szPath[4096];
 
-	std::vector<ParameterSequence>	seq;
+	int m_nSGOrder;
+	int m_nSGWindow;
+	int m_nLambda0;
+	int m_nLambda1;
+	int m_nAlpha;
+	int m_nBeta;
+	int m_nGamma;
+	int m_nNu;
+	double m_dRho;
+	int m_nJmax;
+	int m_nC1;
+	int m_nC2;
+	double m_dK1;
+	double m_dK2;
+	double m_dK4;
+	double m_dEpsilon;
+	double m_dEta1;
+	double m_dEta2;
+	double m_dQ1;
+	double m_dQ2;
+	double m_dQ2Star;
+	double m_dQ3;
+	int m_nJStar;
 
+	double	m_P0[8];
+	double	m_M0[8];
+	double	m_MU0[8];
+	double	m_K3[8];
+
+private:
+	HKEY	m_regKey;
+
+	DWORD GetDwordParam(const char* name, DWORD def);
+	void PutDwordParam(const char* name, DWORD value);
+	void GetStringParam(const char* name, char* buff, size_t sz, const char* def);
+	void PutStringParam(const char* name, const char* value);
 };
 
-static CParameters params;				// The one and only!
+extern CParameters* pParams;				// The one and only!
 

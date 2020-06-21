@@ -3,10 +3,12 @@
 //
 
 #pragma once
+#include "CParameters.h"
 
+class CProgressBar;
 
 // CJigsawSolverWDlg dialog
-class CJigsawSolverWDlg : public CDialogEx
+class CJigsawSolverWDlg : public CDialogEx, public CParameters
 {
 // Construction
 public:
@@ -25,10 +27,30 @@ public:
 protected:
 	HICON m_hIcon;
 
+public:
+	CString m_PuzzleFile;
+	CProgressCtrl m_barEuclidean;
+	CProgressCtrl m_barBivertex;
+	CProgressCtrl m_barPlacing;
+	CProgressCtrl m_barComparing;
+	CProgressCtrl m_barChecking;
+
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+public:
+
+public:
+	afx_msg void OnEnKillfocusJstar();
+	afx_msg void OnBnClickedSolve();
+	afx_msg LRESULT OnProgress(WPARAM wParam, LPARAM lParam);
+
+	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+	void UpdateParameters();
+
+	void UpdateBar(CProgressCtrl& ctrl, CProgressBar & bar);
+
 };

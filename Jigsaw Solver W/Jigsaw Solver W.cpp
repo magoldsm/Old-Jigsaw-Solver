@@ -5,16 +5,14 @@
 #include "pch.h"
 #include "Jigsaw Solver W.h"
 #include "Jigsaw Solver WDlg.h"
+#include "CProgress.h"
+#include "CParameters.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-std::vector<CPiece> Pieces;
-Eigen::VectorXd Weights;
-double Dx, Dy, Dkappa, Dkappas;
-
-
+CParameters* pParams;
 
 // CJigsawSolverWApp
 
@@ -76,6 +74,8 @@ BOOL CJigsawSolverWApp::InitInstance()
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
 
 	CJigsawSolverWDlg dlg;
+	pParams = &dlg;
+
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)

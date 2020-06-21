@@ -100,18 +100,18 @@ _SignatureSimilarity(const Curve& sig1, const Curve& sig2, double D)
 		{
 			if (d[j] < D)
 			{
-				h[i] += 1.0 / (pow((d[j] / (D - d[j])), params.gamma) + params.epsilon);
+				h[i] += 1.0 / (pow((d[j] / (D - d[j])), pParams->m_nGamma) + pParams->m_dEpsilon);
 			}
 		}
 	}
 
 	// Equation 3.8
 
-	VectorXd pPoint = h.array() / (h.array() + params.C1);
+	VectorXd pPoint = h.array() / (h.array() + pParams->m_nC1);
 
 	// Equation 3.10
 
-	VectorXd kPow = sig1.col(0).array().pow(params.alpha);
+	VectorXd kPow = sig1.col(0).array().pow(pParams->m_nAlpha);
 	VectorXd Prod = (pPoint.array() * kPow.array());
 	double num = Prod.sum();
 	double den = kPow.sum();
@@ -472,9 +472,9 @@ CalcTranslation(CFit& fit, vector<CPlacement>& placements, vector<CTracker>& tra
 			curve1,
 			curve2,
 			sig1,
-			sig2, fit.m_gFit.theta, params.beta);
+			sig2, fit.m_gFit.theta, pParams->m_nBeta);
 	}
-	fit.m_Score = muScore(fit.m_ArcTrans, Dx, Dy, params.C2);
+	fit.m_Score = muScore(fit.m_ArcTrans, Dx, Dy, pParams->m_nC2);
 	CalcMeanTranslation(fit);
 }
 
@@ -603,7 +603,7 @@ void PlacePieces()
 						int nArc2 = Tracker.back().m_ActiveArcs[nPiece2][c5];
 
 						if (!included(nArc1, nArc2)
-							&& PScores(nPiece1, nPiece2)(nArc1, nArc2) >= params.seq[j].p0)
+							&& PScores(nPiece1, nPiece2)(nArc1, nArc2) >= pParams->m_P0[j])
 						{
 							included(nArc1, nArc2) = 1;
 
@@ -619,7 +619,7 @@ void PlacePieces()
 
 							int c6 = 1;													// Offset, not an index
 
-							while (PScores(nPiece1, nPiece2)(aarcs1[(c4 + c6) % sz1], aarcs2[(c5 - c6 + sz2) % sz2]) >= params.seq[j].p0)
+							while (PScores(nPiece1, nPiece2)(aarcs1[(c4 + c6) % sz1], aarcs2[(c5 - c6 + sz2) % sz2]) >= pParams->m_P0[j])
 							{
 								if (abs(aarcs1[(c4 + c6) % sz1] - aarcs1[(c4 + c6 - 1) % sz1]) > 1
 									|| abs(aarcs2[(c5 - c6 + sz2) % sz2] - aarcs2[(c5 - c6 + 1 + sz2) % sz2]) > 1)
@@ -640,7 +640,7 @@ void PlacePieces()
 
 							int c7 = 1;
 
-							while (PScores(nPiece1, nPiece2)(aarcs1[(c4 - c7 + sz1) % sz1], aarcs2[(c5 + c7) % sz2]) >= params.seq[j].p0)
+							while (PScores(nPiece1, nPiece2)(aarcs1[(c4 - c7 + sz1) % sz1], aarcs2[(c5 + c7) % sz2]) >= pParams->m_P0[j])
 							{
 								if (abs(aarcs1[(c4 - c7 + sz1) % sz1] - aarcs1[(c4 - c7 + 1 + sz1) % sz1]) > 1
 									|| abs(aarcs2[(c5 + c7) % sz2] - aarcs2[(c5 + c7 - 1) % sz2]) > 1)
@@ -682,12 +682,12 @@ void PlacePieces()
 								fit.m_Score = -1.0;		// Not yet computed
 								Fits.push_back(fit);
 							}
-							if (Fits.back().m_Size < params.seq[j].m0)
+							if (Fits.back().m_Size < pParams->m_M0[j])
 								Fits.pop_back();
 						}
 					}
 				}
-				Progress[PROGRESS_COMPARING].m_Percent = 1.0*(c1*c2 + c3) / (c1*(nPieces - c1));
+				Progress(PROGRESS_COMPARING).m_Percent = 1.0*(c1*c2 + c3) / (c1*(nPieces - c1));
 				Progress.UpdateReport();
 				
 			}
@@ -745,7 +745,7 @@ void PlacePieces()
 						const Curve& sig1 = Pieces[piecesc2(0)].m_Arcs(fitc2.m_Arcs(c3, 0)).m_Signature;
 						Curve sig2 = Orient_Reverse(Pieces[piecesc2(1)].m_Arcs(fitc2.m_Arcs(c3, 1)).m_Signature);
 
-						fitc2.m_ArcTrans[c3].theta = Rigid_Motion_Angle(curve1, curve2, sig1, sig2, params.beta);
+						fitc2.m_ArcTrans[c3].theta = Rigid_Motion_Angle(curve1, curve2, sig1, sig2, pParams->m_nBeta);
 
 						Theta(0) += cos(fitc2.m_ArcTrans[c3].theta);
 						Theta(1) += sin(fitc2.m_ArcTrans[c3].theta);
@@ -758,14 +758,14 @@ void PlacePieces()
 					CalcTranslation(fitc2, Placements, Tracker);
 				}
 
-				if (fitc2.m_Score >= 0 && fitc2.m_Score < params.seq[j].mu0)
+				if (fitc2.m_Score >= 0 && fitc2.m_Score < pParams->m_MU0[j])
 				{
 					//% In this case, it may be that a subset of this collection
 					//% of arc pairings will have a high enough mu - score.
 					//% We need only check this possibility if trimming an arc
 					//% will not drop the number of arc pairs below m_0
 
-					if (fitc2.m_Size > params.seq[j].m0)
+					if (fitc2.m_Size > pParams->m_M0[j])
 					{
 						//% Create a temporary structure
 
@@ -840,7 +840,7 @@ void PlacePieces()
 					Indices tPiecePtIcs_3, tPiecePtIcs;
 					GTransform gLock;
 					Lock(fitc2.m_gFit, Pieces[fitc2.m_Pieces(0,0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary, 
-						gLock, params.seq[j].K3, tPiecePtIcs_3, Tracker.back().m_SP_Bdry_PtIcs_3, tPiecePtIcs, Tracker.back().m_SP_Bdry_PtIcs);
+						gLock, pParams->m_K3[j], tPiecePtIcs_3, Tracker.back().m_SP_Bdry_PtIcs_3, tPiecePtIcs, Tracker.back().m_SP_Bdry_PtIcs);
 
 					// Compute Scores
 
@@ -861,16 +861,16 @@ void PlacePieces()
 						
 					// Update progress report
 
-					Progress[PROGRESS_CHECKING].m_Percent = 1.0*c2 / Fits.size();
+					Progress(PROGRESS_CHECKING).m_Percent = 1.0*c2 / Fits.size();
 					Progress.UpdateReport();
 
 					// If scores are high enough, place the piece
 
-					if ((params.eta1*q1 + params.eta2 * q3 > params.Q1 || q2 > params.Q2Star) && q2 > params.Q2 && q3 > params.Q3)
+					if ((pParams->m_dEta1*q1 + pParams->m_dEta2 * q3 > pParams->m_dQ1 || q2 > pParams->m_dQ2Star) && q2 > pParams->m_dQ2 && q3 > pParams->m_dQ3)
 					{
 						// Add new placement to placements variable
 							
-						Placements[c1].m_Score << q1, q2, q3, params.eta1*q1 + params.eta2 * q3;
+						Placements[c1].m_Score << q1, q2, q3, pParams->m_dEta1*q1 + pParams->m_dEta2 * q3;
 						Placements[c1].m_nPiece = fitc2.m_Pieces[0];
 						Placements[c1].m_gLock = gLock;
 						Placements[c1].m_Fit = fitc2;
@@ -1012,7 +1012,7 @@ void PlacePieces()
 						Tracker.back().m_PlacedPieces.push_back(Placements[c1].m_nPiece);
 						AllExcept(Tracker.back().m_RemainingPieces, nPieces, Tracker.back().m_PlacedPieces);
 
-						Progress[PROGRESS_PLACING] = (int) (c1 - nPieces + nRPc) / nRPc;
+						Progress(PROGRESS_PLACING) = (int) (c1 - nPieces + nRPc) / nRPc;
 						Progress.UpdateReport();
 
 						bProgress = true;
@@ -1023,7 +1023,7 @@ void PlacePieces()
 		}
 		
 		Progress.RestartReport(PROGRESS_CHECKING, false);
-		Progress[PROGRESS_COMPARING] = 0;
+		Progress(PROGRESS_COMPARING) = 0;
 		Progress.UpdateReport();
 
 		// If the algorithm has dead - ended, increase depth in paraemter sequence
@@ -1031,7 +1031,7 @@ void PlacePieces()
 
 		if (!bProgress)
 		{
-			if (j < params.jMax)
+			if (j < pParams->m_nJStar)
 			{
 				j++;
 

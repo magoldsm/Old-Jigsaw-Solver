@@ -132,7 +132,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	// Equation 5.3
 
 	double dStar = ((CDelta.col(0) - CDeltam1.col(0)).array().square() + (CDelta.col(1) - CDeltam1.col(1)).array().square()).sqrt().sum() / nC;
-	double dStarK1 = params.K1*dStar;
+	double dStarK1 = pParams->m_dK1*dStar;
 
 	// Equations 5.4
 	//
@@ -211,9 +211,9 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	double dj = dStarK1;
 	double ThetaJm1 = 0.0;
 	Vector2d cJm1(0.0, 0.0);
-	double dStarK4 = params.K4 * dStar;
+	double dStarK4 = pParams->m_dK4 * dStar;
 
-	for (int j = 0; j < params.jMax; j++)
+	for (int j = 0; j < pParams->m_nJmax; j++)
 	{
 		double tauTotj = 0.0;
 		RowVector2d fTotj(0.0, 0.0);
@@ -230,7 +230,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 			if (Aj[c2] >= dStarK4)
 			{
-				Vector2d fj = (diff.array().colwise() / (diffNorm.array().pow(params.nu + 1) + params.epsilon * diffNorm.array())).colwise().sum();
+				Vector2d fj = (diff.array().colwise() / (diffNorm.array().pow(pParams->m_nNu + 1) + pParams->m_dEpsilon * diffNorm.array())).colwise().sum();
 				fTotj.array() += fj.array();
 				RowVector2d t = EDeltaK1Transformed - wj;
 				tauTotj += t[0] * fj[1] - t[1] * fj[0];		// 
@@ -249,7 +249,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 		// Terminate the algorithm if fit is poor and getting worse.
 
-		if (dAvj > dj && dMedj >= params.seq[j].K3*dStar)
+		if (dAvj > dj && dMedj >= pParams->m_K3[j]*dStar)
 		{
 			gj.theta -= thetaj;
 			gj.dx -= cj[0];
@@ -260,7 +260,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 		// Calculate new transformation.  Equation 5.12
 
-		double deltaj = params.rho * dMedj / max(fTotj.norm() / nEDeltas, rINF*fabs(tauTotj) / r2);
+		double deltaj = pParams->m_dRho * dMedj / max(fTotj.norm() / nEDeltas, rINF*fabs(tauTotj) / r2);
 
 		// Equations 5.11
 
@@ -288,7 +288,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 	// Find indices of relevant sets
 
-	double K2dStar = params.K2 * dStar;
+	double K2dStar = pParams->m_dK2 * dStar;
 	double K3dStar = K3 * dStar;
 	//Matrix<bool, -1, 1> D2Sel(nCtilde);
 	//Matrix<bool, -1, 1> D3Sel(nCtilde);

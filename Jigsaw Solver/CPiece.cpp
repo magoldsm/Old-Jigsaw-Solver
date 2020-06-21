@@ -102,7 +102,7 @@ bool ReadPuzzle(std::vector<CPiece>& Pieces, const char* filename)
 		Pieces[i] = tempPieces[i];
 	}
 	
-	return false;
+	return true;
 }
 
 // Assigning an OpenCV contour to a CPiece initializes the piece's contour

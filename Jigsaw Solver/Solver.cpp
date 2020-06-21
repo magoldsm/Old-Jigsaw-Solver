@@ -1,52 +1,33 @@
-// Jigsaw Solver.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
 #include "pch.h"
-#include <iostream>
-
-#include "Savitsy-Golay.h"
+#include "CProgress.h"
 #include "CParameters.h"
-#include "Jigsaw Solver.h"
+#include "Savitsy-Golay.h"
 #include "Euclidean Signature.h"
 #include "BivertexArcDecomposition.h"
 #include "Utilities.h"
 #include "SignatureSimilarity.h"
-#include "CProgress.h"
-
+#include "CPiece.h"
 
 using namespace std;
 using namespace Eigen;
 using namespace cv;
 
-std::vector<CPiece> Pieces;
-Eigen::VectorXd Weights;
-VectorXd smoothVec, d1Vec, d2Vec;
-double Dx, Dy, Dkappa, Dkappas;
-double AverageLength;
-long AverageSize;
-CProgress Progress(4);
-
-static CParameters p;					// Non-GUI - declare it here.
-CParameters* pParams = &p;				// The one and only!
+extern std::vector<CPiece> Pieces;
+extern Eigen::VectorXd Weights;
+extern Eigen::VectorXd smoothVec, d1Vec, d2Vec;
+extern double AverageLength;
+extern long AverageSize;
+extern double Dx, Dy, Dkappa, Dkappas;
 
 
-void CProgress::UpdateReport()
+void Solver()
 {
-	// __debugbreak();
-}
-
-
-
-int main()
-{
-	Progress(3).MakeSubbars(2);
-
 	LARGE_INTEGER liStart, liFrequency, liSG, liEuclid, liBVD, liTotal;
 
 	QueryPerformanceFrequency(&liFrequency);
 
-	bool bSuccess = ReadPuzzle(Pieces, "Hoff-2 pieces.csv");
-	int nPieces = (int) Pieces.size();
+	bool bSuccess = ReadPuzzle(Pieces, pParams->m_szPath);
+	int nPieces = (int)Pieces.size();
 
 	QueryPerformanceCounter(&liStart);
 
@@ -70,24 +51,24 @@ int main()
 		Progress.UpdateReport();
 	FOR_END
 
-	for (int i = 0; i < nPieces; i++)
-	{
-		Curve& c = Pieces[i].m_Contour;
-		Curve cm1;
-		cm1.resizeLike(c);
+		for (int i = 0; i < nPieces; i++)
+		{
+			Curve& c = Pieces[i].m_Contour;
+			Curve cm1;
+			cm1.resizeLike(c);
 
-		circShift(c, cm1, -1);
+			circShift(c, cm1, -1);
 
-		Weights[i] = Pieces[i].m_Signature.col(0).array().abs().sum();
+			Weights[i] = Pieces[i].m_Signature.col(0).array().abs().sum();
 
-		AverageSize += (long)Pieces[i].m_Contour.size();
-		AverageLength += ((c.col(0) - cm1.col(0)).array().square() + (c.col(1) - cm1.col(1)).array().square()).sqrt().sum();
-	}
-		
+			AverageSize += (long)Pieces[i].m_Contour.size();
+			AverageLength += ((c.col(0) - cm1.col(0)).array().square() + (c.col(1) - cm1.col(1)).array().square()).sqrt().sum();
+		}
+
 	QueryPerformanceCounter(&liEuclid);
 	cout << "Eucliean Sigs " << (liEuclid.QuadPart - liSG.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
 
-	AverageSize /= (long) Pieces.size();
+	AverageSize /= (long)Pieces.size();
 	AverageLength /= Pieces.size();
 
 
@@ -108,9 +89,9 @@ int main()
 
 	FOR_START(i, 0, nPieces)
 		BivertexArcDecomposition(Pieces[i], delta0, delta1/*, BA[i], Pt2Arc[i]*/);
-		nDone++;
-		Progress(PROGRESS_BIVERTEX).m_Percent = 1.0*nDone / nPieces;
-		Progress.UpdateReport();
+	nDone++;
+	Progress(PROGRESS_BIVERTEX).m_Percent = 1.0*nDone / nPieces;
+	Progress.UpdateReport();
 	FOR_END
 
 	QueryPerformanceCounter(&liBVD);
@@ -127,14 +108,14 @@ int main()
 	//{
 	//	PlotDecomposition(Pieces[i], i);
 	//	PlotKappasDecomposition(Pieces[i], delta0, i);
-	//	waitKey(1);
+	////	waitKey(1);
 	//}
 
-	//waitKey(0);
+	waitKey(0);
 
 	PlacePieces();
 	QueryPerformanceCounter(&liTotal);
 	cout << "Total Runtime " << (liTotal.QuadPart - liStart.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
 	waitKey(0);
-}
 
+}
