@@ -7,7 +7,7 @@ using namespace Eigen;
 using namespace std;
 using namespace cv;
 
-void BivertexArcDecomposition(CPiece& piece, double delta0, double delta1/*, BATable& BA, VectorXi& Pt2Arc*/)
+void BivertexArcDecomposition(CPiece& piece, double delta0, double delta1)
 {
 	Matrix<long, Dynamic, 2> BAIndices;
 	BATable& BA = piece.m_Arcs;

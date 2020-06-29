@@ -33,46 +33,34 @@ void CPScore::SetSize(size_t sz)
 	m_ArcScores = new MatrixXd[sz*sz];
 }
 
-void CPScore::Display()
+inline double
+QuickPow(double x, int i)
 {
-	cout << "    ";
-	for (size_t i = 0; i < m_Size; i++)
+	double xsq;
+
+	switch (i)
 	{
-		cout << setw(5) << i << " ";
-	}
-	cout << endl;
-	for (size_t i = 0; i < m_Size; i++)
-	{
-		cout << setw(2) << i << "  ";
-		for (size_t j = 0; j < m_Size; j++)
-		{
-			MatrixXd& arcscore = (*this)(i, j);
-			if (arcscore.cols() == 0 && arcscore.rows() == 0)
-				cout << "   [] ";
-			else
-			{
-				char buff[100];
-				sprintf_s(buff, 100, "%dx%d ", (int) arcscore.rows(), (int) arcscore.cols());
-				cout << setw(6) << buff;
-			}
-		}
-		cout << endl;
+	case 0:
+		return 1.0;
+	case 1:
+		return x;
+	case 2:
+		return x * x;
+	case 3:
+		return x * x * x;
+	case 4:
+		xsq = x * x;
+		return xsq * xsq;
+	case 5:
+		xsq = x * x;
+		return xsq * xsq * x;
+	case 6:
+		xsq = x * x;
+		return xsq * xsq * xsq;
+	default:
+		return pow(x, i);
 	}
 }
-
-void CPScore::Display(size_t nRow, size_t nCol)
-{
-	MatrixXd& arcscore = (*this)(nRow, nCol);
-	for (int i = 0; i < arcscore.rows(); i++)
-	{
-		for (int j = 0; j < arcscore.cols(); j++)
-		{
-			cout << setprecision(4) << setw(8) << arcscore(i, j);
-		}
-		cout << endl;
-	}
-}
-
 
 // Equation numbers are from paper "Extensions of Invariant Signatures for Object Recognition
 
@@ -88,8 +76,7 @@ _SignatureSimilarity(const Curve& sig1, const Curve& sig2, double D)
 
 	// Calculate strengths of correspondence
 	
-	for (int i = 0; i < sz1; i++)
-	{
+	FOR_START(i, 0, sz1)
 		Matrix<double, 1, 2> t = sig1.row(i);
 		VectorXd d = (sig2.rowwise() - t).array().square().rowwise().sum().sqrt();
 		//VectorXd d = ((sig2.col(0) - t.x).array().square() + (sig2.col(1)-t.y).array().square()).sqrt();
@@ -100,10 +87,10 @@ _SignatureSimilarity(const Curve& sig1, const Curve& sig2, double D)
 		{
 			if (d[j] < D)
 			{
-				h[i] += 1.0 / (pow((d[j] / (D - d[j])), pParams->m_nGamma) + pParams->m_dEpsilon);
+				h[i] += 1.0 / (QuickPow((d[j] / (D - d[j])), pParams->m_nGamma) + pParams->m_dEpsilon);
 			}
 		}
-	}
+	FOR_END
 
 	// Equation 3.8
 
@@ -237,16 +224,16 @@ Rigid_Motion_Angle(const Curve& curve1, const Curve& curve2, const Curve& signat
 	dy1[0] = dy1[1]; dy1[sz1 - 1] = dy1[sz1 - 2];
 	dy2[0] = dy2[1]; dy2[sz2 - 1] = dy2[sz2 - 2];
 
-	dx1.array() *= signature1.col(1).array();
-	dy1.array() *= signature1.col(1).array();
+	//dx1.array() *= signature1.col(1).array();
+	//dy1.array() *= signature1.col(1).array();
 
-	dx2.array() *= signature2.col(1).array();
-	dy2.array() *= signature2.col(1).array();
+	//dx2.array() *= signature2.col(1).array();
+	//dy2.array() *= signature2.col(1).array();
 
 	VectorXd ks1pow = signature1.col(1).array().pow(beta);
 	VectorXd ks2pow = signature2.col(1).array().pow(beta);
-	double ks1powsum = ks1pow.sum();
-	double ks2powsum = ks2pow.sum();
+	//double ks1powsum = ks1pow.sum();
+	//double ks2powsum = ks2pow.sum();
 
 	// The original code divides the X and Y componenets by ksXpowsum.  I believe this
 	// is unnecessary and I've removed it.
@@ -482,6 +469,32 @@ void PlacePieces()
 {
 	size_t nPieces = Pieces.size();
 
+	//for (int j = 0; j < nPieces; j++)
+	//{
+	//	DebugOutput("%d,,, ", j);
+	//}
+
+	//DebugOutput("\n");
+
+	//for (int i = 0; i < 9999; i++)
+	//{
+	//	bool bNobody = true;
+
+	//	for (int j = 0; j < nPieces; j++)
+	//	{
+	//		if (i >= Pieces[j].m_Signature.rows())
+	//			DebugOutput("999999, 999999, , ");
+	//		else
+	//		{
+	//			DebugOutput("%f, %f, , ", Pieces[j].m_Signature(i, 0), Pieces[j].m_Signature(i, 1));
+	//			bNobody = false;
+	//		}
+	//	}
+	//	DebugOutput("\n");
+	//	if (bNobody)
+	//		break;
+	//}
+
 	CPScore PScores(nPieces);
 	vector<CPlacement> Placements;
 	vector<CTracker> Tracker;
@@ -496,7 +509,7 @@ void PlacePieces()
 
 	int piece1;							// Start with the "heaviest" piece.
 	double dummy = Weights.maxCoeff(&piece1);
-//	piece1 = 11;									// ***BUGBUG*** We compute slightly different weights than Hoff.
+	piece1 = 1;										// ***BUGBUG*** We compute slightly different weights than Hoff.
 	Pieces[piece1].m_nActive = 1;
 
 	Tracker.back().SetSize(nPieces);
@@ -540,6 +553,13 @@ void PlacePieces()
 // c3	counts placed pieces.  Index into tracker.m_PlacedPieces
 
 	Progress.RestartReport(PROGRESS_PLACING, true);
+	Progress.Erase();
+	LRESULT fragh = Progress.Plot(Tracker.back().m_SolvedPuzzleBoundary, RGB(0, 0, 255), 3);
+	LRESULT farch1 = 0, farch2 = 0;
+
+	// ***NOTE*** H&O plots all placements here.  I assume this is used when resuming a saved puzzle.
+
+	LRESULT plotHandle = 0;
 
 	while (c1 < nPieces)
 	{
@@ -572,7 +592,7 @@ void PlacePieces()
 						for (int c5 = 0; c5 < Tracker.back().m_ActiveArcs[nPiece2].size(); c5++)
 						{
 							int nArc2 = Tracker.back().m_ActiveArcs[nPiece2][c5];
-
+							//DebugOutput("[%d %d] [%d %d]\n", nPiece1, nPiece2, nArc1, nArc2);
 							PScores(nPiece1, nPiece2)(nArc1, nArc2) =
 								SignatureSimilarity(Pieces[nPiece1].m_Arcs(nArc1).m_Signature,
 									 Orient_Reverse(Pieces[nPiece2].m_Arcs(nArc2).m_Signature),
@@ -580,8 +600,9 @@ void PlacePieces()
 						}
 					}
 				}
-//				PScores.Display(nPiece1, nPiece2);
-//				PScores.Display();
+				//PScores.Display(nPiece1, nPiece2, pParams->m_P0[j]);
+				if (pParams->m_bShowPScores)
+					PScores.Display(pParams->m_P0[j]);
 
 				//%--------------------------------------------------------------------------
 				//% Find sequences of consecutive high P-Scores
@@ -590,15 +611,22 @@ void PlacePieces()
 				MatrixXi included = MatrixXi::Zero(PScores(nPiece1, nPiece2).rows(), PScores(nPiece1, nPiece2).cols());
 				vector<Vector2i> tArcs;
 
-				int c4Max = (int) Tracker.back().m_ActiveArcs[nPiece1].size();
+				//int c4Max = (int) Tracker.back().m_ActiveArcs[nPiece1].size();
+				//int c5Max = (int) Tracker.back().m_ActiveArcs[nPiece2].size();
 
-				for (int c4 = 0; c4 < c4Max; c4++)
+				vector<int>& aarcs1 = Tracker.back().m_ActiveArcs[nPiece1];
+				vector<int>& aarcs2 = Tracker.back().m_ActiveArcs[nPiece2];
+				size_t sz1 = aarcs1.size();
+				size_t sz2 = aarcs2.size();
+				size_t nArcs1 = Pieces[nPiece1].m_Arcs.size();
+				size_t nArcs2 = Pieces[nPiece2].m_Arcs.size();
+
+				for (int c4 = 0; c4 < sz1; c4++)
 				{
 					int nArc1 = Tracker.back().m_ActiveArcs[nPiece1][c4];
 
-					int c5Max = (int) Tracker.back().m_ActiveArcs[nPiece2].size();
 
-					for (int c5 = 0; c5 < c5Max; c5++)
+					for (int c5 = 0; c5 < sz2; c5++)
 					{
 						int nArc2 = Tracker.back().m_ActiveArcs[nPiece2][c5];
 
@@ -610,17 +638,14 @@ void PlacePieces()
 							tArcs.resize(0);
 							tArcs.push_back(Vector2i(nArc1, nArc2));
 
-							vector<int>& aarcs1 = Tracker.back().m_ActiveArcs[nPiece1];
-							vector<int>& aarcs2 = Tracker.back().m_ActiveArcs[nPiece2];
-							size_t sz1 = aarcs1.size();
-							size_t sz2 = aarcs2.size();
-
 							// Look c6 elements ahead in aarcs1 and c6 elements behind in aarcs2.
 
 							int c6 = 1;													// Offset, not an index
 
 							while (PScores(nPiece1, nPiece2)(aarcs1[(c4 + c6) % sz1], aarcs2[(c5 - c6 + sz2) % sz2]) >= pParams->m_P0[j])
 							{
+								// If there are non-consecutive arcs, we're done
+
 								if (abs(aarcs1[(c4 + c6) % sz1] - aarcs1[(c4 + c6 - 1) % sz1]) > 1
 									|| abs(aarcs2[(c5 - c6 + sz2) % sz2] - aarcs2[(c5 - c6 + 1 + sz2) % sz2]) > 1)
 									break;
@@ -642,10 +667,20 @@ void PlacePieces()
 
 							while (PScores(nPiece1, nPiece2)(aarcs1[(c4 - c7 + sz1) % sz1], aarcs2[(c5 + c7) % sz2]) >= pParams->m_P0[j])
 							{
-								if (abs(aarcs1[(c4 - c7 + sz1) % sz1] - aarcs1[(c4 - c7 + 1 + sz1) % sz1]) > 1
-									|| abs(aarcs2[(c5 + c7) % sz2] - aarcs2[(c5 + c7 - 1) % sz2]) > 1)
+								//if  (abs(aarcs1(mod(c4 - c7, sz1), 1) - aarcs1(mod(c4 - c7 + 1, sz1), 1)) > 1 ...
+								//	|| abs(aarcs2(mod(c5 + c7, sz2), 1) - aarcs2(mod(c5 + c7 - 1, sz2), 1)) > 1)
+								int atest1 = aarcs1[(c4 - c7 + sz1) % sz1];
+								int atest2 = aarcs1[(c4 - c7 + 1 + sz1) % sz1];
+								if ((atest1 - (atest2 + 1) % nArcs1) != 0 && (atest2 - (atest1 + 1) % nArcs1) != 0)
 									break;
-								else
+
+								atest1 = aarcs2[(c5 + c7) % sz2];
+								atest2 = aarcs2[(c5 + c7 - 1) % sz2];
+								if ((atest1 - (atest2 + 1) % nArcs2) != 0 && (atest2 - (atest1 + 1) % nArcs2) != 0)
+									break;
+
+								//if (abs(aarcs1[(c4 - c7 + sz1) % sz1] - aarcs1[(c4 - c7 + 1 + sz1) % sz1]) > 1
+								//	|| abs(aarcs2[(c5 + c7) % sz2] - aarcs2[(c5 + c7 - 1) % sz2]) > 1)
 								{
 									int a1 = (int)((aarcs1[c4] - c7 + included.rows()) % included.rows());
 									int a2 = (int)((aarcs2[c5] + c7) % included.cols());
@@ -661,10 +696,12 @@ void PlacePieces()
 							{
 								for (int c8 = 0; c8 < c6 + c7 - 1 - minIncluded; c8++)
 								{
+									MatrixXi x;
 									CFit fit;
 									fit.m_Size = minIncluded;
 									fit.m_Pieces = Vector2i(nPiece1, nPiece2);
-									Map<MatrixXi> t((int*)tArcs.data(), tArcs.size(), 2);
+									Map<Matrix<int, -1, 2, RowMajor> > t((int*)tArcs.data(), tArcs.size(), 2);
+//									Map<MatrixX2i> t((int*)tArcs.data(), tArcs.size(), 2);
 									fit.m_Arcs = t.block(c8, 0, minIncluded, 2);
 									fit.m_Slot = 1;
 									fit.m_Score = -1.0;		// Not yet computed
@@ -676,7 +713,8 @@ void PlacePieces()
 								CFit fit;
 								fit.m_Size = c6 + c7 - 1;
 								fit.m_Pieces = Vector2i(nPiece1, nPiece2);
-								Map<MatrixXi> t((int*)tArcs.data(), tArcs.size(), 2);
+								Map<Matrix<int, -1, 2, RowMajor> > t((int*)tArcs.data(), tArcs.size(), 2);
+//								Map<MatrixX2i> t((int*)tArcs.data(), tArcs.size(), 2);
 								fit.m_Arcs = t;
 								fit.m_Slot = 1;
 								fit.m_Score = -1.0;		// Not yet computed
@@ -697,7 +735,7 @@ void PlacePieces()
 		{
 			CFit* pFit1 = (CFit*)p1;
 			CFit* pFit2 = (CFit*)p2;
-			return (pFit1->m_Size - pFit2->m_Size);
+			return (pFit2->m_Size - pFit1->m_Size);				// Descending sort
 		});
 
 		int c2 = 0;
@@ -733,6 +771,12 @@ void PlacePieces()
 					fitc2.m_gFit.dx = 0; fitc2.m_gFit.dy = 0; fitc2.m_gFit.theta = 0;
 					fitc2.m_ArcTrans.resize(fitc2.m_Arcs.rows());
 
+					// Compute the average angle of rotation.  To compute the average, we use the Mean of Angles formula:
+					//
+					// ThetaBar = arg( sum(e^(i*Thetaj)) )
+					//
+
+
 					for (int c3 = 0; c3 < fitc2.m_Arcs.rows(); c3++)
 					{
 						const Curve& curve1 = Pieces[piecesc2(0)].m_Arcs(fitc2.m_Arcs(c3, 0)).m_Contour;
@@ -747,11 +791,13 @@ void PlacePieces()
 
 						fitc2.m_ArcTrans[c3].theta = Rigid_Motion_Angle(curve1, curve2, sig1, sig2, pParams->m_nBeta);
 
-						Theta(0) += cos(fitc2.m_ArcTrans[c3].theta);
-						Theta(1) += sin(fitc2.m_ArcTrans[c3].theta);
+						//Theta(0) += cos(fitc2.m_ArcTrans[c3].theta);
+						//Theta(1) += sin(fitc2.m_ArcTrans[c3].theta);
 					}
 
-					fitc2.m_gFit.theta = std::atan2(Theta(1), Theta(0));
+					fitc2.MeanOfAngles();
+
+					//fitc2.m_gFit.theta = std::atan2(Theta(1), Theta(0));
 
 					// %Calculate translations with after rotation through average angle theta
 
@@ -840,7 +886,7 @@ void PlacePieces()
 					Indices tPiecePtIcs_3, tPiecePtIcs;
 					GTransform gLock;
 					Lock(fitc2.m_gFit, Pieces[fitc2.m_Pieces(0,0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary, 
-						gLock, pParams->m_K3[j], tPiecePtIcs_3, Tracker.back().m_SP_Bdry_PtIcs_3, tPiecePtIcs, Tracker.back().m_SP_Bdry_PtIcs);
+						gLock, pParams->m_K3[j], tPiecePtIcs_3, Tracker.back().m_SP_Bdry_PtIcs_3, tPiecePtIcs, Tracker.back().m_SP_Bdry_PtIcs, plotHandle);
 
 					// Compute Scores
 
@@ -869,11 +915,18 @@ void PlacePieces()
 					if ((pParams->m_dEta1*q1 + pParams->m_dEta2 * q3 > pParams->m_dQ1 || q2 > pParams->m_dQ2Star) && q2 > pParams->m_dQ2 && q3 > pParams->m_dQ3)
 					{
 						// Add new placement to placements variable
-							
-						Placements[c1].m_Score << q1, q2, q3, pParams->m_dEta1*q1 + pParams->m_dEta2 * q3;
-						Placements[c1].m_nPiece = fitc2.m_Pieces[0];
-						Placements[c1].m_gLock = gLock;
-						Placements[c1].m_Fit = fitc2;
+
+						Vector4d score;
+						score << q1, q2, q3, pParams->m_dEta1*q1 + pParams->m_dEta2 * q3;
+
+						assert(c1 == Placements.size());
+
+						Placements.emplace_back(fitc2.m_Pieces[0], score, gLock, fitc2);
+
+						//Placements[c1].m_Score << q1, q2, q3, pParams->m_dEta1*q1 + pParams->m_dEta2 * q3;
+						//Placements[c1].m_nPiece = fitc2.m_Pieces[0];
+						//Placements[c1].m_gLock = gLock;
+						//Placements[c1].m_Fit = fitc2;
 
 						// Update tracker variable
 
@@ -883,12 +936,16 @@ void PlacePieces()
 						// Mark arcs / points as used or remaining and introduce neighbors / activate
 
 						vector<int>& inactive = Tracker.back().m_InactiveArcs[piecesc2[0]];
+						int prev = -1;
 
 						for (int c3 = 0; c3 < tPiecePtIcs.size(); c3++)
 						{
 							auto arcno = Pieces[piecesc2[0]].m_Pt2Arc(tPiecePtIcs[c3]);
-							if (arcno)
+							if (arcno != -1 && arcno != prev)
+							{
 								inactive.push_back(arcno);
+								prev = arcno;
+							}
 						}
 
 						Placements[c1].m_Neighbors.resize(0);
@@ -919,7 +976,8 @@ void PlacePieces()
 
 							// Mark arcs as inactive
 
-							auto arc = Pieces[newNeighbor].m_Pt2Arc(Tracker.back().m_SPB_Pt2PcPt(SPIc3, 1), 1);
+							auto xxx = Tracker.back().m_SPB_Pt2PcPt(SPIc3, 1);
+							auto arc = Pieces[newNeighbor].m_Pt2Arc(xxx);
 
 							if (arc)
 							{
@@ -980,7 +1038,7 @@ void PlacePieces()
 
 						// Calculate new Fragment
 
-						// Remove elements from the solved puzzle boundary
+						// Remove elements from the solved puzzle boundary (H&O line 634)
 
 						Tracker.back().m_SolvedPuzzleBoundary = RemoveElements(Tracker.back().m_SolvedPuzzleBoundary, Tracker.back().m_SP_Bdry_PtIcs);
 
@@ -989,7 +1047,7 @@ void PlacePieces()
 						AllExcept(tTrack, tPiece.size(), tPiecePtIcs);
 						tPiece = RemoveElements(tPiece, tPiecePtIcs);
 
-						Append(Tracker.back().m_SolvedPuzzleBoundary, tPiece);
+						Append(Tracker.back().m_SolvedPuzzleBoundary, TransformCurve(tPiece, gLock));
 
 						//Curve joined(Tracker.back().m_SolvedPuzzleBoundary.rows() + tPiece.rows(), 2);
 						//joined << Tracker.back().m_SolvedPuzzleBoundary, TransformCurve(tPiece, gLock);
@@ -1015,18 +1073,83 @@ void PlacePieces()
 						Progress(PROGRESS_PLACING) = (int) (c1 - nPieces + nRPc) / nRPc;
 						Progress.UpdateReport();
 
+						Progress.Delete(fragh);
+						Progress.Erase();
+						Progress.Plot(Tracker.back().m_SolvedPuzzleBoundary, RGB(0, 0, 255), 3);
+
+						Progress.Plot(TransformCurve(Pieces[Placements[c1].m_nPiece].m_Contour, gLock));
+
+#ifdef _DEBUG
+						//Sleep(500);
+#endif
+						// Update fit arc points
+
+						CFit& fit = Placements[c1].m_Fit;
+						Curve farcpts1, farcpts2;
+
+						for (int c4 = 0; c4 < fit.m_Arcs.rows(); c4++)
+						{
+							Curve x1 = TransformCurve(Pieces[fit.m_Pieces(0)].m_Arcs(fit.m_Arcs(c4, 0)).m_Contour,
+								Placements[Tracker.back().m_Pc2Place[fit.m_Pieces[0]]].m_gLock);
+							Curve x2 = TransformCurve(Pieces[fit.m_Pieces(1)].m_Arcs(fit.m_Arcs(c4, 1)).m_Contour,
+								Placements[Tracker.back().m_Pc2Place[fit.m_Pieces[1]]].m_gLock);
+
+							Append(farcpts1, x1);
+							Append(farcpts2, x2);
+						}
+
+						if (farch1)
+							Progress.Delete(farch1);
+						if (farch2)
+							Progress.Delete(farch2);
+
+						farch1 = Progress.Plot(farcpts1, RGB(255, 0, 255), -3);
+						farch2 = Progress.Plot(farcpts2, RGB(255, 0, 0), -3);
+
+						/*
+						// Plot new piece
+                        x2 = pieces(placements(c1).Piece).Points;
+                        x2 = transf(x2, placements(c1).g_lock);
+                        [txy] = mean(x2);
+                        text(txy(1, 1), txy(1, 2), num2str(c1));
+                        x2 = [x2 ; x2(1, :)];
+                        plot(x2(:, 1), x2(:, 2), 'Color', 'k', 'LineWidth', 1.1)
+                        
+                        %Update fit arc points
+                        for c4 = 1:size(placements(c1).Fit.Arcs, 1) 
+                            x1 = pieces(placements(c1).Fit.Pieces(1, 1)).Arcs{placements(c1).Fit.Arcs(c4, 1), 1};
+                            x1 = transf(x1, placements(tracker(end).Pc2Place(placements(c1).Fit.Pieces(1, 1), 1)).g_lock);
+                            x2 = pieces(placements(c1).Fit.Pieces(1, 2)).Arcs{placements(c1).Fit.Arcs(c4, 2), 1};
+                            x2 = transf(x2, placements(tracker(end).Pc2Place(placements(c1).Fit.Pieces(1, 2), 1)).g_lock);
+                            farcpts1 = [farcpts1 ; x1];
+                            farcpts2 = [farcpts2 ; x2];
+                        end
+                        delete(farch1);
+                        delete(farch2);
+                        farch1 = plot(farcpts1(:, 1), farcpts1(:, 2), 'm*', 'MarkerSize', 3);
+                        farch2 = plot(farcpts2(:, 1), farcpts2(:, 2), 'r*', 'MarkerSize', 3);
+                        legend([fragh farch1 farch2], 'Active Points', 'Matched Bivertex Arcs', 'Matched Bivertex Arcs', 'Location', 'Best');
+
+						
+						*/
+
+
 						bProgress = true;
 						c1++;
 					}
+					if (plotHandle)
+						Progress.Delete(plotHandle);
+					plotHandle = 0;
 				}
 			}
+			c2++;
 		}
 		
 		Progress.RestartReport(PROGRESS_CHECKING, false);
 		Progress(PROGRESS_COMPARING) = 0;
 		Progress.UpdateReport();
 
-		// If the algorithm has dead - ended, increase depth in paraemter sequence
+		// If the algorithm has dead - ended, increase depth in parameter sequence
 		// or terminate algorithm if this is not possible
 
 		if (!bProgress)
@@ -1037,7 +1160,7 @@ void PlacePieces()
 
 				// Activate pieces
 
-				for (int c4 = 0; c4 < Tracker.back().m_RemainingPieces.size(); c4++)
+				for (int c4 = 0; c4 < Tracker.back().m_PlacedPieces.size(); c4++)
 				{
 					Pieces[Tracker.back().m_PlacedPieces[c4]].m_nActive = 1;
 				}
@@ -1063,6 +1186,67 @@ void PlacePieces()
 		/*
 		*/
 	}
+	Progress.Erase();
+	for (int c2 = 0; c2 < Placements.size(); c2++)
+	{
+		Curve x = Pieces[Placements[c2].m_nPiece].m_Contour;
+		Progress.Plot(TransformCurve(x, Placements[c2].m_gLock), RGB(0,0,0), 1);
+	}
 }
 
+
+// Find and eliminate outliers at either end of arc
+
+void CFit::MeanOfAngles()
+{
+	CalcAverageTheta(*this);
+
+	double thetaAvg = m_gFit.theta;
+	if (thetaAvg < 0)
+		thetaAvg += 2 * PI;
+
+	// Now look at the 1st and last arcs and check for outliers
+
+	int nStart = 0;
+	int nEnd = m_ArcTrans.size() - 1;
+
+	for (int i = 0; i < m_ArcTrans.size(); i++)
+	{
+		double dErr = fabs(m_ArcTrans[i].theta - thetaAvg) / thetaAvg;
+		if (dErr > 0.15)
+		{
+			nStart = i + 1;
+		}
+		else
+			break;
+	}
+
+	for (int i = m_ArcTrans.size() - 1; i >= 0; i--)
+	{
+		double dErr = fabs(m_ArcTrans[i].theta - thetaAvg) / thetaAvg;
+		if (dErr > 0.15)
+		{
+			nEnd = i - 1;
+		}
+		else
+			break;
+	}
+
+	if (nStart < m_Size && nEnd >= 0)
+	{
+		// Now, delete all the arcs we don't want
+
+		m_Arcs = m_Arcs.block(nStart, 0, (nEnd - nStart) + 1, 2).eval();
+
+		if (nStart > 0)
+		{
+			memcpy_s(&m_ArcTrans[0], sizeof(m_ArcTrans[0])*m_ArcTrans.size(), &m_ArcTrans[nStart], sizeof(m_ArcTrans[0])*(m_ArcTrans.size() - nStart));
+		}
+
+		m_Size = (nEnd - nStart) + 1;
+		m_ArcTrans.resize(m_Size);
+	}
+
+	CalcAverageTheta(*this);
+}
 

@@ -3,11 +3,24 @@
 class CProgressBar
 {
 public:
-	CProgressBar() : m_Percent(0.0), m_Bars(nullptr) {}
-	CProgressBar(int n) { m_Bars = new CProgressBar[n]; }
-	~CProgressBar() { if (m_Bars) delete[] m_Bars; m_Bars = nullptr; }
+	CProgressBar() : m_Percent(0.0), m_Bars(nullptr)
+	{
+	}
+	CProgressBar(int n) 
+	{
+		m_Bars = new CProgressBar[n];
+	}
+	~CProgressBar() 
+	{
+		if (m_Bars) 
+			delete[] m_Bars; 
+		m_Bars = nullptr; 
+	}
 
-	void MakeSubbars(int n) { m_Bars = new CProgressBar[n]; }
+	void MakeSubbars(int n) 
+	{
+		m_Bars = new CProgressBar[n]; 
+	}
 
 	void Start(bool bStart);
 
@@ -22,9 +35,19 @@ public:
 class CProgress
 {
 public:
-	CProgress() : m_Bars(nullptr) {}
-	CProgress(int n) { m_Bars = new CProgressBar[n]; }
-	~CProgress() { if (m_Bars) delete[] m_Bars; m_Bars = nullptr; }
+	CProgress() : m_Bars(nullptr)
+	{
+	}
+	CProgress(int n)
+	{
+		m_Bars = new CProgressBar[n];
+	}
+	~CProgress()
+	{
+		if (m_Bars)
+			delete[] m_Bars;
+		m_Bars = nullptr;
+	}
 
 	CProgressBar*	m_Bars;
 
@@ -36,7 +59,11 @@ public:
 
 	void RestartReport(int n, bool bStart);				// Set bStart=1 to start a bar, 0 to reset it
 	void RestartReport(int n, int m, bool bStart);		// Set bStart=1 to start a bar, 0 to reset it
-	void UpdateReport();								// Update bars 
+	void UpdateReport();								// Update bars
+
+	LRESULT Plot(const Curve& curve, COLORREF color = 0, int width = 1);
+	void Erase();
+	void Delete(LRESULT item);
 
 private:
 
@@ -53,3 +80,6 @@ private:
 extern CProgress Progress;
 
 #define	WM_PROGRESS			(WM_USER+1)
+#define	WM_ERASE			(WM_USER+2)
+#define	WM_PLOT				(WM_USER+3)
+#define	WM_DELETE			(WM_USER+4)

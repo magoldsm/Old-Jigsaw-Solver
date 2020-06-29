@@ -13,6 +13,8 @@
 #include "BivertexArcDecomposition.h"
 #include "Utilities.h"
 #include "SignatureSimilarity.h"
+#include "CPlot.h"
+#include "CPScoreDlg.h"
 
 using namespace std;
 using namespace cv;
@@ -34,6 +36,27 @@ CProgress Progress(N_PROGRESS);
 void CProgress::UpdateReport()
 {
 	::PostMessage(m_hWndGUI, WM_PROGRESS, 0, 0L);
+}
+
+
+LRESULT CProgress::Plot(const Curve& curve, COLORREF color, int width)
+{
+	LRESULT lr = ::SendMessage(m_hWndGUI, WM_PLOT, color | ((width&0xff)<<24), (LPARAM)&curve);
+	//Sleep(10);
+	return lr;
+}
+
+
+void CProgress::Erase()
+{
+	::SendMessage(m_hWndGUI, WM_ERASE, 0, 0L);
+}
+
+
+void CProgress::Delete(LRESULT item)
+{
+	::SendMessage(m_hWndGUI, WM_DELETE, 0, item);
+	//Sleep(10);
 }
 
 
@@ -76,6 +99,7 @@ END_MESSAGE_MAP()
 
 CJigsawSolverWDlg::CJigsawSolverWDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_JIGSAWSOLVERW_DIALOG, pParent)
+	, m_bShowPScores(FALSE)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -83,6 +107,7 @@ CJigsawSolverWDlg::CJigsawSolverWDlg(CWnd* pParent /*=nullptr*/)
 void CJigsawSolverWDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_PLOT, m_Plot);
 	DDX_Text(pDX, IDC_SG_ORDER, m_nSGOrder);
 	DDX_Text(pDX, IDC_SG_WINDOW, m_nSGWindow);
 	DDX_Text(pDX, IDC_ALPHA, m_nAlpha);
@@ -148,6 +173,8 @@ void CJigsawSolverWDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_PLACING_PIECES, m_barPlacing);
 	DDX_Control(pDX, IDC_COMPARING_PIECES, m_barComparing);
 	DDX_Control(pDX, IDC_CHECKING_FITS, m_barChecking);
+	DDX_Check(pDX, IDC_PLOT_BVD, m_bPlotBVD);
+	DDX_Check(pDX, IDC_SHOW_PSCORES, m_bShowPScores);
 }
 
 BEGIN_MESSAGE_MAP(CJigsawSolverWDlg, CDialogEx)
@@ -157,6 +184,9 @@ BEGIN_MESSAGE_MAP(CJigsawSolverWDlg, CDialogEx)
 	ON_EN_KILLFOCUS(IDC_JSTAR, &CJigsawSolverWDlg::OnEnKillfocusJstar)
 	ON_BN_CLICKED(IDC_SOLVE, &CJigsawSolverWDlg::OnBnClickedSolve)
 	ON_MESSAGE(WM_PROGRESS, &CJigsawSolverWDlg::OnProgress)
+	ON_MESSAGE(WM_ERASE, &CJigsawSolverWDlg::OnErase)
+	ON_MESSAGE(WM_PLOT, &CJigsawSolverWDlg::OnPlot)
+	ON_MESSAGE(WM_DELETE, &CJigsawSolverWDlg::OnDelete)
 END_MESSAGE_MAP()
 
 
@@ -201,6 +231,11 @@ BOOL CJigsawSolverWDlg::OnInitDialog()
 	m_barChecking.SetRange(0, 1000);
 
 	OnEnKillfocusJstar();
+
+	CRect rect;
+	m_Plot.GetWindowRect(&rect);
+	ScreenToClient(&rect);
+	InvalidateRect(&rect, FALSE);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -330,6 +365,8 @@ void CJigsawSolverWDlg::UpdateParameters()
 
 void CJigsawSolverWDlg::OnBnClickedSolve()
 {
+	UpdateData();
+
 	::AfxBeginThread([](LPVOID pParam)->UINT {
 		Solver();
 		return 0;
@@ -379,10 +416,71 @@ void CJigsawSolverWDlg::UpdateBar(CProgressCtrl& ctrl, CProgressBar & bar)
 	int nLower, nUpper;
 	ctrl.GetRange(nLower, nUpper);
 	int nDiff = nUpper - nLower;
-	int val = (bar.m_Percent * nDiff) + nLower;
+	int val = (int)((bar.m_Percent * nDiff) + nLower);
 
 	ctrl.SetPos(val);
-	if (bar.m_Percent != 0)
-		TRACE("%d\n", val);
 }
+
+LRESULT CJigsawSolverWDlg::OnErase(WPARAM wParam, LPARAM lParam)
+{
+	m_Plot.Erase();
+	return 0;
+}
+
+
+LRESULT CJigsawSolverWDlg::OnPlot(WPARAM wParam, LPARAM lParam)
+{
+	return (LRESULT) m_Plot.Plot(*((Curve*)lParam), wParam&0xffffff, (wParam>>24)&0xff);
+}
+
+LRESULT CJigsawSolverWDlg::OnDelete(WPARAM wParam, LPARAM lParam)
+{
+	m_Plot.Delete((void*)lParam);
+	return 0;
+}
+
+void CPScore::Display(double dP0)
+{
+	CPScoreDlg dlg(*this, dP0);
+
+	dlg.DoModal();
+
+	//cout << "    ";
+	//for (size_t i = 0; i < m_Size; i++)
+	//{
+	//	cout << setw(5) << i << " ";
+	//}
+	//cout << endl;
+	//for (size_t i = 0; i < m_Size; i++)
+	//{
+	//	cout << setw(2) << i << "  ";
+	//	for (size_t j = 0; j < m_Size; j++)
+	//	{
+	//		MatrixXd& arcscore = (*this)(i, j);
+	//		if (arcscore.cols() == 0 && arcscore.rows() == 0)
+	//			cout << "   [] ";
+	//		else
+	//		{
+	//			char buff[100];
+	//			sprintf_s(buff, 100, "%dx%d ", (int)arcscore.rows(), (int)arcscore.cols());
+	//			cout << setw(6) << buff;
+	//		}
+	//	}
+	//	cout << endl;
+	//}
+}
+
+void CPScore::Display(size_t nRow, size_t nCol, double dP0)
+{
+	//MatrixXd& arcscore = (*this)(nRow, nCol);
+	//for (int i = 0; i < arcscore.rows(); i++)
+	//{
+	//	for (int j = 0; j < arcscore.cols(); j++)
+	//	{
+	//		cout << setprecision(4) << setw(8) << arcscore(i, j);
+	//	}
+	//	cout << endl;
+	//}
+}
+
 

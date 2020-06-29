@@ -4,6 +4,7 @@
 
 #pragma once
 #include "CParameters.h"
+#include "CPlot.h"
 
 class CProgressBar;
 
@@ -35,6 +36,7 @@ public:
 	CProgressCtrl m_barComparing;
 	CProgressCtrl m_barChecking;
 
+
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
@@ -47,10 +49,15 @@ public:
 	afx_msg void OnEnKillfocusJstar();
 	afx_msg void OnBnClickedSolve();
 	afx_msg LRESULT OnProgress(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnErase(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnPlot(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnDelete(WPARAM wParam, LPARAM lParam);
 
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
 	void UpdateParameters();
 
 	void UpdateBar(CProgressCtrl& ctrl, CProgressBar & bar);
 
+	CPlot m_Plot;
+	BOOL m_bShowPScores;
 };

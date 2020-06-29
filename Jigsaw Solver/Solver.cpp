@@ -104,18 +104,21 @@ void Solver()
 	Progress(PROGRESS_BIVERTEX).m_Percent = 1.0;
 	Progress.UpdateReport();
 
-	//for (int i = 0; i < nPieces; i++)
-	//{
-	//	PlotDecomposition(Pieces[i], i);
-	//	PlotKappasDecomposition(Pieces[i], delta0, i);
-	////	waitKey(1);
-	//}
+	if (pParams->m_bPlotBVD)
+	{
+		for (int i = 0; i < nPieces; i++)
+		{
+			PlotDecomposition(Pieces[i], i);
+			PlotKappasDecomposition(Pieces[i], delta0, i);
+			//	waitKey(1);
+		}
+	}
 
 	waitKey(0);
 
 	PlacePieces();
 	QueryPerformanceCounter(&liTotal);
 	cout << "Total Runtime " << (liTotal.QuadPart - liStart.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
-	waitKey(0);
+//	waitKey(0);
 
 }

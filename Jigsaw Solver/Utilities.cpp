@@ -265,9 +265,12 @@ AllExcept(vector<int>& dest, size_t size, vector<int> except)
 	auto ucmp = [](int i, int j) { return i == j; };
 
 	qsort(except.data(), except.size(), sizeof(int), icmp);
-	unique(except.begin(), except.end(), ucmp);
+	auto it = unique(except.begin(), except.end(), ucmp);
+
+	except.resize(std::distance(except.begin(), it));
 
 	for (int i = (int) except.size() - 1; i >= 0; i--)
-		dest.erase(dest.begin() + except[i]);
+		if (except[i] != -1)
+			dest.erase(dest.begin() + except[i]);
 }
 

@@ -30,11 +30,67 @@ static CParameters p;					// Non-GUI - declare it here.
 CParameters* pParams = &p;				// The one and only!
 
 
+void CPScore::Display(double dP0)
+{
+	cout << "    ";
+	for (size_t i = 0; i < m_Size; i++)
+	{
+		cout << setw(5) << i << " ";
+	}
+	cout << endl;
+	for (size_t i = 0; i < m_Size; i++)
+	{
+		cout << setw(2) << i << "  ";
+		for (size_t j = 0; j < m_Size; j++)
+		{
+			MatrixXd& arcscore = (*this)(i, j);
+			if (arcscore.cols() == 0 && arcscore.rows() == 0)
+				cout << "   [] ";
+			else
+			{
+				char buff[100];
+				sprintf_s(buff, 100, "%dx%d ", (int)arcscore.rows(), (int)arcscore.cols());
+				cout << setw(6) << buff;
+			}
+		}
+		cout << endl;
+	}
+}
+
+void CPScore::Display(size_t nRow, size_t nCol, double dP0)
+{
+	MatrixXd& arcscore = (*this)(nRow, nCol);
+	for (int i = 0; i < arcscore.rows(); i++)
+	{
+		for (int j = 0; j < arcscore.cols(); j++)
+		{
+			cout << setprecision(4) << setw(8) << arcscore(i, j);
+		}
+		cout << endl;
+	}
+}
+
+
 void CProgress::UpdateReport()
 {
 	// __debugbreak();
 }
 
+void CProgress::Erase()
+{
+	// __debugbreak();
+}
+
+LRESULT CProgress::Plot(const Curve& curve, COLORREF color, int width)
+{
+	// __debugbreak();
+	return 0;
+}
+
+void CProgress::Delete(LRESULT item)
+{
+	// __debugbreak();
+}
 
 
 int main()

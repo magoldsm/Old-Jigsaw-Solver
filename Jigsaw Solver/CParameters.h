@@ -38,6 +38,9 @@ public:
 	double	m_MU0[8];
 	double	m_K3[8];
 
+	BOOL m_bPlotBVD;
+	BOOL m_bShowPScores;
+
 private:
 	HKEY	m_regKey;
 

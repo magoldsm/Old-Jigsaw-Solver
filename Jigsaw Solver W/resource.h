@@ -7,6 +7,7 @@
 #define IDS_ABOUTBOX                    101
 #define IDD_JIGSAWSOLVERW_DIALOG        102
 #define IDR_MAINFRAME                   128
+#define IDD_PSCORE_GRID                 131
 #define IDC_EUCLIDEAN_SIGNATURES        1000
 #define IDC_BIVERTEX_ARC                1001
 #define IDC_PLACING_PIECES              1002
@@ -24,9 +25,14 @@
 #define IDC_LAMBDA1                     1015
 #define IDC_SG_ORDER                    1016
 #define IDC_SOLVE                       1021
-#define IDC_MFCEDITBROWSE1              1023
 #define IDC_PUZZLE_FILE                 1023
+#define IDC_PLOT                        1024
+#define IDC_PLOT_BVD                    1026
+#define IDC_GRID                        1027
+#define IDC_PLOT_BVD2                   1027
+#define IDC_SHOW_PSCORES                1027
 #define IDC_NU                          1028
+#define IDC_COPY                        1028
 #define IDC_EPSILON                     1029
 #define IDC_RHO                         1030
 #define IDC_JMAX                        1031
@@ -75,9 +81,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        131
+#define _APS_NEXT_RESOURCE_VALUE        133
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1024
+#define _APS_NEXT_CONTROL_VALUE         1029
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

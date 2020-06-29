@@ -5,6 +5,7 @@
 #include "Utilities.h"
 #include "Jigsaw Solver.h"
 #include "Lock.h"
+#include "CProgress.h"
 
 using namespace Eigen;
 using namespace std;
@@ -46,15 +47,36 @@ OUTPUTS
 */
 
 inline static Matrix<double, 1, 2>
-TransformAboutCM(const Vector2d point, const GTransform& trans, Vector2d cm)
+ TransformPointAboutCM(Vector2d point, const GTransform& trans, Vector2d cm)
 {
 	Vector2d result;
+	Vector2d xx = point.array() - cm.array();
 
 	double c = cos(trans.theta);
 	double s = sin(trans.theta);
 
-	result[0] = (point(0) * c - point(1) * s) + trans.dx + cm[0];
-	result[1] = (point(0) * s + point(1) * c) + trans.dy + cm[1];
+	result[0] = (xx(0) * c - xx(1) * s) + trans.dx + cm[0];
+	result[1] = (xx(0) * s + xx(1) * c) + trans.dy + cm[1];
+
+	return result;
+}
+
+inline static MatrixX2d
+TransformCurveAboutCM(MatrixX2d curve, const GTransform& trans, Vector2d cm)
+{
+	MatrixX2d result;
+	result.resizeLike(curve);
+
+	MatrixX2d xx = curve.rowwise() - cm.transpose();
+
+	double c = cos(trans.theta);
+	double s = sin(trans.theta);
+
+	result.col(0) = (xx.col(0) * c - xx.col(1) * s).array() + trans.dx + cm[0];
+	result.col(1) = (xx.col(0) * s + xx.col(1) * c).array() + trans.dy + cm[1];
+
+	//result[0] = (xx(0) * c - xx(1) * s) + trans.dx + cm[0];
+	//result[1] = (xx(0) * s + xx(1) * c) + trans.dy + cm[1];
 
 	return result;
 }
@@ -117,7 +139,7 @@ OUTPUTS
 */
 
 void
-Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTransform& gLock, double K3, Indices& D_Delta_3_Ics, Indices& Dtilde_Delta_3_Ics, Indices& D_Delta_2_Ics, Indices& Dtilde_Delta_2_Ics)
+Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTransform& gLock, double K3, Indices& D_Delta_3_Ics, Indices& Dtilde_Delta_3_Ics, Indices& D_Delta_2_Ics, Indices& Dtilde_Delta_2_Ics, LRESULT& plotHandle)
 {
 	int nC = (int)CDelta.rows();
 	int nCtilde = (int)CtildeDelta.rows();
@@ -126,6 +148,11 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	Curve EDeltaK1;
 	double thetaj = 0.0;
 	Vector2d cj(0.0, 0.0);
+
+	LRESULT inith = Progress.Plot(TransformCurve(CDelta, g0));
+
+	LRESULT debugh = 0;
+	LRESULT debughtilde = 0;
 
 	circShift(CDelta, CDeltam1, -1);
 
@@ -139,7 +166,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	// bNearby is a boolean matrix.  It has CtildeDelta.rows() rows by CDelta.rows() columns.  Thus, each row corresponds
 	// to an element (ztilde) in CtildeDelta) and each column corresponds to an element in CDelta.
 	//
-	// An entry is true if || ztilde - g . z || < dStar * K1.  That is if the points are "close enough" to interact in the
+	// An entry is true if || ztilde - g · z || < dStar * K1.  That is if the points are "close enough" to interact in the
 	// locking alogorithm
 	// 
 
@@ -147,13 +174,27 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	bNearby.resize(CtildeDelta.rows(), CDelta.rows());
 
 	FOR_START(c1, 0, nC)
-		bNearby.col(c1) = (CtildeDelta.rowwise() - TransformAboutCM(CDelta.row(c1), g0, Vector2d(0, 0))).rowwise().norm().array() < dStarK1;
+		bNearby.col(c1) = (CtildeDelta.rowwise() - TransformPointAboutCM(CDelta.row(c1), g0, Vector2d(0, 0))).rowwise().norm().array() < dStarK1;
 	FOR_END
 
-		// The goal is now to create 2 sets: EDeltaK1 and EtildeDeltaK1.  EtildeDeltaK1 is the set of points
-		// Tots is the number of trues in each column of bNearby.   nEDeltas
-		Matrix<Index, 1, -1> tots = bNearby.colwise().count();
-	int nEDeltas = (int)(tots.array() > 0).count();
+	// The goal is now to create 2 sets: EDeltaK1 and EtildeDeltaK1.
+	//
+	// EDeltaK1			is the set of points from CDelta that interact with CtildeDelta.
+
+	// EtildeDeltaK1	is a vector of sets of points.  The ith element of EtildeDeltaK1
+	//					is the set of points that interact with the ith point of EDeltaK1.
+
+	// bNearby(row,col)	Each column corresponds to a point in CDelta, each row to a point
+	//					in CtildeDelta.
+
+	// totsCol			is the number of trues in each column of bNearby.  It is the number
+	//					of points in CtildeDelta that interact with the CDelta of that column.
+
+	// totsRow			is the number of trues in each row of bNearby.  It is the number
+	//					of points in CDelta that interact with the CtildeDelta of that row.
+
+	Matrix<Index, 1, -1> totsCol = bNearby.colwise().count();
+	int nEDeltas = (int)(totsCol.array() > 0).count();
 
 	if (nEDeltas == 0)
 	{
@@ -161,17 +202,34 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		return;
 	}
 
+#ifdef _DEBUG
+	Matrix<Index, 1, -1> totsRow = bNearby.rowwise().count();
+	int nEtildeDeltas = (int)(totsRow.array() > 0).count();
+
+	Curve debugEtildeDeltaK1;
+	debugEtildeDeltaK1.resize(nEtildeDeltas, 2);
+
+	int iDest = 0;
+	for (int i = 0; i < CtildeDelta.rows(); i++)
+	{
+		if (totsRow[i] != 0)
+		{
+			debugEtildeDeltaK1.row(iDest++) = CtildeDelta.row(i);
+		}
+	}
+#endif
+
 	EtildeDeltaK1.resize(nEDeltas);
 	EDeltaK1.resize(nEDeltas, 2);
 	int iEtildeDeltaK1 = 0;
 
 	for (int c1 = 0; c1 < nC; c1++)
 	{
-		if (tots[c1] != 0)
+		if (totsCol[c1] != 0)
 		{
 			EDeltaK1.row(iEtildeDeltaK1) = CDelta.row(c1);
 			Curve& c = EtildeDeltaK1[iEtildeDeltaK1++];
-			c.resize(tots[c1], 2);
+			c.resize(totsCol[c1], 2);
 			int idx = 0;
 			for (int r1 = 0; r1 < nCtilde; r1++)
 			{
@@ -189,6 +247,20 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	RowVectorXd normSquared = (EDeltaK1.rowwise() - zCM).rowwise().squaredNorm();
 	double r2 = normSquared.sum();
 	double rINF = normSquared.array().sqrt().maxCoeff();
+
+	if (debugh)
+		Progress.Delete(debugh);
+
+	Curve debugEDK = TransformCurve(EDeltaK1, g0);
+	debugh = Progress.Plot(debugEDK, RGB(255, 0, 0), -3);
+
+#ifdef _DEBUG
+	if (debughtilde)
+		Progress.Delete(debughtilde);
+
+	debughtilde = Progress.Plot(debugEtildeDeltaK1, RGB(0, 255, 0), -3);
+	//Sleep(500);
+#endif
 
 	// Convert g_0 from the form used in Assemble() (rotation around the
 	// origin) to the form used in Lock() (rotation around the center of
@@ -221,7 +293,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 		for (int c2 = 0; c2 < nEDeltas; c2++)
 		{
-			RowVector2d EDeltaK1Transformed = TransformAboutCM(EDeltaK1.row(c2), gj, zCM);
+			RowVector2d EDeltaK1Transformed = TransformPointAboutCM(EDeltaK1.row(c2), gj, zCM);
 			MatrixXd diff = EtildeDeltaK1[c2].rowwise() - EDeltaK1Transformed;
 			VectorXd diffNorm = diff.rowwise().norm();
 			Aj[c2] = diffNorm.minCoeff();
@@ -249,12 +321,19 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 		// Terminate the algorithm if fit is poor and getting worse.
 
-		if (dAvj > dj && dMedj >= pParams->m_K3[j]*dStar)
+		if (dAvj > dj && dMedj >= K3*dStar)
 		{
 			gj.theta -= thetaj;
 			gj.dx -= cj[0];
 			gj.dy -= cj[1];
-			// ***BUGBUG*** Plotting code
+
+			if (plotHandle)
+				Progress.Delete(plotHandle);
+
+			Curve c = TransformCurveAboutCM(CDelta, gj, zCM);
+
+			plotHandle = Progress.Plot(c);
+
 			break;
 		}
 
@@ -275,7 +354,14 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		wj += cj;
 		dj = dAvj;
 
-		// ***BUGBUG*** Plotting code
+		if (plotHandle)
+			Progress.Delete(plotHandle);
+
+		Curve c = CDelta.rowwise() - zCM;
+		c = TransformCurve(c, gj);
+		c.rowwise() += zCM;
+
+		plotHandle = Progress.Plot(c);
 
 		// Step 7, termination condition
 
@@ -296,38 +382,89 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	//D2Sel.setConstant(false);
 	//D3Sel.setConstant(false);
 
+	vector<VectorXb> test2, test3;
+	vector<VectorXd> diff;
+	test2.resize(nC);
+	test3.resize(nC);
+	diff.resize(nC);
+
+	D_Delta_2_Ics.resize(0);
+	Dtilde_Delta_2_Ics.resize(0);
+	D_Delta_3_Ics.resize(0);
+	Dtilde_Delta_3_Ics.resize(0);
+
+	vector<bool> bTest2Any, bTest3Any;
+	bTest2Any.resize(nC);
+	bTest3Any.resize(nC);
+
+	FOR_START(c2, 0, nC)
+		diff[c2] = (CtildeDelta.rowwise() - TransformPointAboutCM(CDelta.row(c2), gj, zCM)).rowwise().norm().eval();
+		//test2[c2] = (((CtildeDelta.rowwise() - TransformPointAboutCM(CDelta.row(c2), gj, zCM)).rowwise().norm()).array() < K2dStar);
+		test2[c2] = (diff[c2].array() < K2dStar);
+		bTest2Any[c2] = test2[c2].any();
+		//test3[c2] = (((CtildeDelta.rowwise() - TransformPointAboutCM(CDelta.row(c2), gj, zCM)).rowwise().norm()).array() < K3dStar);
+		test3[c2] = (diff[c2].array() < K3dStar);
+		bTest3Any[c2] = test3[c2].any();
+		FOR_END
+
+	DebugOutput("-----------------------------------------\n");
+
 	for (int c2 = 0; c2 < nC; c2++)
 	{
-		VectorXd diff = (CtildeDelta.rowwise() - TransformAboutCM(CDelta.row(c2), gj, zCM)).rowwise().norm();
-		VectorXb test = diff.array() < K2dStar;
-
-		if (test.any())
+		if (bTest2Any[c2])
 		{
 			for (int i = 0; i < nCtilde; i++)
-				if (test[i])
+				if (test2[c2][i])
+				{
+					//DebugOutput("2: c2=%3d  i=%3d    diff=%.2f\n", c2, i, diff[c2][i]);
 					Dtilde_Delta_2_Ics.push_back(i);
+				}
 			D_Delta_2_Ics.push_back(c2);
 		}
 
-		test = diff.array() < K3dStar;
-		if (test.any())
+		if (bTest3Any[c2])
 		{
 			for (int i = 0; i < nCtilde; i++)
-				if (test[i])
+				if (test3[c2][i])
+				{
+					//DebugOutput("3: c2=%3d  i=%3d    diff=%.2f\n", c2, i, diff[c2][i]);
 					Dtilde_Delta_3_Ics.push_back(i);
+				}
 			D_Delta_3_Ics.push_back(c2);
 		}
 	}
 
-	auto icmp = [](const void* p1, const void* p2) { return *(int*)p1 - *(int*)p2; };
+	auto icmp = [](const void* p1, const void* p2) 
+	{
+		return *(int*)p1 - *(int*)p2; 
+	};
 	qsort(Dtilde_Delta_2_Ics.data(), Dtilde_Delta_2_Ics.size(), sizeof(int), icmp);
 	qsort(Dtilde_Delta_3_Ics.data(), Dtilde_Delta_3_Ics.size(), sizeof(int), icmp);
 
-	auto ucmp = [](int i, int j) { return i == j; };
-	unique(Dtilde_Delta_2_Ics.begin(), Dtilde_Delta_2_Ics.end(), ucmp);
-	unique(Dtilde_Delta_3_Ics.begin(), Dtilde_Delta_3_Ics.end(), ucmp);
+	auto ucmp = [](int i, int j) 
+	{
+		return i == j; 
+	};
+	auto it = unique(Dtilde_Delta_2_Ics.begin(), Dtilde_Delta_2_Ics.end(), ucmp);
+	Dtilde_Delta_2_Ics.resize(std::distance(Dtilde_Delta_2_Ics.begin(), it));
 
-	// ***BUGBUG*** Plotting code
+	it = unique(Dtilde_Delta_3_Ics.begin(), Dtilde_Delta_3_Ics.end(), ucmp);
+	Dtilde_Delta_3_Ics.resize(std::distance(Dtilde_Delta_3_Ics.begin(), it));
+
+	Progress.Delete(inith);
+	if (debugh)
+		Progress.Delete(debugh);
+
+	if (debughtilde)
+		Progress.Delete(debughtilde);
+
+#ifdef _DEBUG
+	LRESULT t2 = Progress.Plot(Gather(CtildeDelta, Dtilde_Delta_2_Ics), RGB(255, 255, 0), -5);
+	LRESULT t3 = Progress.Plot(Gather(CtildeDelta, Dtilde_Delta_3_Ics), RGB(0, 255, 255), -5);
+	//Sleep(500);
+	Progress.Delete(t2);
+	Progress.Delete(t3);
+#endif
 
 	// Convert gj to the form used in SignatureSimilarity()
 
@@ -340,5 +477,8 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	translation = Vector2d(gj.dx, gj.dy) + zCMt - rot * zCMt;
 
 	gLock = GTransform(gj.theta, translation(0), translation(1));
+#ifdef _DEBUG
+	//Sleep(100);
 	int yyyy = 0;
+#endif
 }

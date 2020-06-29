@@ -131,6 +131,9 @@ CParameters::CParameters()
 		m_MU0[i] = GetDwordParam((string("mu0_") + to_string(i)).data(), defaultMu[i]) / 1000.0;
 		m_K3[i] = GetDwordParam((string("K3_") + to_string(i)).data(), defaultK3[i]) / 1000.0;
 	}
+
+	m_bPlotBVD = GetDwordParam("PlotBVD", 0);
+	m_bShowPScores = GetDwordParam("ShowPScores", 0);
 }
 
 
@@ -176,4 +179,6 @@ void CParameters::SaveParams()
 		PutDwordParam((string("mu0_") + to_string(i)).data(), (DWORD)(m_MU0[i] * 1000.0));
 		PutDwordParam((string("K3_") + to_string(i)).data(), (DWORD)(m_K3[i] * 1000.0));
 	}
+
+	PutDwordParam("ShowPScores", m_bShowPScores);
 }

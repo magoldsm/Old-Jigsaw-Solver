@@ -46,9 +46,12 @@ class CFit
 public:
 	CFit() : m_Size(0), m_Slot(0), m_Score(-1) {}
 
+	void MeanOfAngles();								// Go through m_ArcTrans, eliminate outliers and compute m_gFit.theta
+
 	Eigen::Vector2i					m_Pieces;
 	int								m_Size;
 	Eigen::MatrixX2i				m_Arcs;				// Rows given by m_Size
+	//std::vector<Eigen::Vector2i>	m_Arcs;				// Rows given by m_Size
 	std::vector<GTransform>			m_ArcTrans;			// Rows given by m_Size
 	GTransform						m_gFit;
 	double							m_Score;
@@ -83,6 +86,7 @@ public:
 	~CPScore();
 
 	void SetSize(size_t sz);
+	size_t GetSize() { return m_Size; }
 
 	bool IsEmpty(size_t nRow, size_t nCol) { return m_ArcScores[nRow*m_Size + nCol].size() == 0; }
 
@@ -91,10 +95,12 @@ public:
 		return (m_ArcScores[nRow*m_Size + nCol]);
 	}
 
-	void Display();
-	void Display(size_t nRow, size_t nCol);
+	void Display(double dP0 = 1.0);
+	void Display(size_t nRow, size_t nCol, double dP0 = 1.0);
 
 private:
 	size_t				m_Size;
 	Eigen::MatrixXd*	m_ArcScores;
 };
+
+Curve TransformCurve(const Curve& points, const GTransform& trans);

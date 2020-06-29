@@ -101,7 +101,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;$(SolutionDir)..\GridCtrl-master;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -124,7 +124,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;$(SolutionDir)..\GridCtrl-master;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -149,7 +149,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;$(SolutionDir)..\GridCtrl-master;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -176,7 +176,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;$(SolutionDir)..\GridCtrl-master;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -195,6 +195,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\GridCtrl-master\CellRange.h" />
     <ClInclude Include="..\Jigsaw Solver\BivertexArcDecomposition.h" />
     <ClInclude Include="..\Jigsaw Solver\CParameters.h" />
     <ClInclude Include="..\Jigsaw Solver\CPiece.h" />
@@ -206,6 +207,15 @@
     <ClInclude Include="..\Jigsaw Solver\SignatureSimilarity.h" />
     <ClInclude Include="..\Jigsaw Solver\Solver.h" />
     <ClInclude Include="..\Jigsaw Solver\Utilities.h" />
+    <ClInclude Include="CPlot.h" />
+    <ClInclude Include="CPScoreDlg.h" />
+    <ClInclude Include="Grid\CellRange.h" />
+    <ClInclude Include="Grid\GridCell.h" />
+    <ClInclude Include="Grid\GridCellBase.h" />
+    <ClInclude Include="Grid\GridDropTarget.h" />
+    <ClInclude Include="Grid\InPlaceEdit.h" />
+    <ClInclude Include="Grid\MemDC.h" />
+    <ClInclude Include="Grid\TitleTip.h" />
     <ClInclude Include="Jigsaw Solver W.h" />
     <ClInclude Include="Jigsaw Solver WDlg.h" />
     <ClInclude Include="Resource.h" />
@@ -223,6 +233,14 @@
     <ClCompile Include="..\Jigsaw Solver\SignatureSimilarity.cpp" />
     <ClCompile Include="..\Jigsaw Solver\Solver.cpp" />
     <ClCompile Include="..\Jigsaw Solver\Utilities.cpp" />
+    <ClCompile Include="CPlot.cpp" />
+    <ClCompile Include="CPScoreDlg.cpp" />
+    <ClCompile Include="Grid\GridCell.cpp" />
+    <ClCompile Include="Grid\GridCellBase.cpp" />
+    <ClCompile Include="Grid\GridCtrl.cpp" />
+    <ClCompile Include="Grid\GridDropTarget.cpp" />
+    <ClCompile Include="Grid\InPlaceEdit.cpp" />
+    <ClCompile Include="Grid\TitleTip.cpp" />
     <ClCompile Include="Jigsaw Solver W.cpp" />
     <ClCompile Include="Jigsaw Solver WDlg.cpp" />
     <ClCompile Include="pch.cpp">

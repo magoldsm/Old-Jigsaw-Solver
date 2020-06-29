@@ -109,3 +109,17 @@ BOOL CJigsawSolverWApp::InitInstance()
 	return FALSE;
 }
 
+#ifdef _DEBUG
+void DebugOutput(const char* szFormat, ...)
+{
+	char szBuff[10240];
+	va_list arg;
+	va_start(arg, szFormat);
+	_vsnprintf_s(szBuff, sizeof(szBuff), _TRUNCATE, szFormat, arg);
+	va_end(arg);
+
+	OutputDebugStringA(szBuff);
+}
+#endif
+
+

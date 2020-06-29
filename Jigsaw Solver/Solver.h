@@ -22,10 +22,18 @@ using Curve = Eigen::Matrix<double, -1, 2>;
 
 #define	PI			3.14159265358
 
+#if defined(_DEBUG) && defined(WINVER)
+void DebugOutput(const char* szFormat, ...);
+#else
+inline void DebugOutput(const char* szFormat, ...) {}
+#endif
 
 
 
-#define USE_TBB
+
+
+
+//#define USE_TBB
 
 #ifdef USE_TBB
 #define FOR_START(vbl, min, max)	tbb::parallel_for(min, max, [&](int vbl) {

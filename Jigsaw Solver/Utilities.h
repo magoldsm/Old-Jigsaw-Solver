@@ -26,17 +26,20 @@ T RemoveElements(const  T& src, std::vector<int> remove)
 	auto ucmp = [](int i, int j) { return i == j; };
 
 	qsort(remove.data(), remove.size(), sizeof(int), icmp);
-	unique(remove.begin(), remove.end(), ucmp);
+	auto it = unique(remove.begin(), remove.end(), ucmp);
+
+	remove.resize(std::distance(remove.begin(), it));
 
 	T res;
-	res.resize(src.rows() - remove.size(), 2);
+	size_t sz = remove.size();
+	res.resize(src.rows() - sz, 2);
 	int ires = 0;
 	int iremove = 0;
 
 	for (int i = 0; i < src.rows(); i++)
 	{
-		if (i < remove[iremove])
-			res(ires++) = src(i);
+		if (iremove >=sz || i < remove[iremove])
+			res.row(ires++) = src.row(i);
 
 		else if (i == remove[iremove])
 			iremove++;
