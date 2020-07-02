@@ -17,7 +17,7 @@ class CPScore
 public:
 	CPScore(size_t sz) : m_Size(sz)
 	{
-		m_ArcScores = new MatrixXd* [sz*sz];
+		m_ArcScores = new Eigen::MatrixXd* [sz*sz];
 	}
 
 	~CPScore()
@@ -30,12 +30,12 @@ public:
 
 	bool IsEmpty(size_t nRow, size_t nCol) { return m_ArcScores[nRow*m_Size + nCol] == NULL; }
 
-	MatrixXd& operator()(size_t nRow, size_t nCol)
+	Eigen::MatrixXd& operator()(size_t nRow, size_t nCol)
 	{
 		return *(m_ArcScores[nRow*m_Size + nCol]);
 	}
 
 private:
 	size_t		m_Size;
-	MatrixXd	**m_ArcScores;
+	Eigen::MatrixXd	**m_ArcScores;
 };

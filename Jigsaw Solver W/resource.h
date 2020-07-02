@@ -29,7 +29,6 @@
 #define IDC_PLOT                        1024
 #define IDC_PLOT_BVD                    1026
 #define IDC_GRID                        1027
-#define IDC_PLOT_BVD2                   1027
 #define IDC_SHOW_PSCORES                1027
 #define IDC_NU                          1028
 #define IDC_COPY                        1028
@@ -45,9 +44,15 @@
 #define IDC_JSTAR                       1038
 #define IDC_SG_WINDOW                   1039
 #define IDC_P0                          1041
+#define IDC_PLOT_LEVEL                  1042
+#define IDC_PAUSE                       1045
+#define IDC_SAVE_PROGRESS               1046
+#define IDC_RESUME                      1047
+#define IDC_EUCLIDEAN_SIGNATURES_PCT    1048
 #define IDC_M0                          1049
 #define IDC_MU0                         1050
 #define IDC_K30                         1051
+#define IDC_EUCLIDEAN_SIGNATURES_RUNTIME 1052
 #define IDC_M1                          1053
 #define IDC_MU1                         1054
 #define IDC_K31                         1055
@@ -76,6 +81,29 @@
 #define IDC_P5                          1078
 #define IDC_P6                          1079
 #define IDC_P7                          1080
+#define IDC_EUCLIDEAN_SIGNATURES_REMAINING 1081
+#define IDC_EUCLIDEAN_SIGNATURES_PCT2   1082
+#define IDC_BIVERTEX_ARC_PCT            1082
+#define IDC_EUCLIDEAN_SIGNATURES_RUNTIME2 1083
+#define IDC_BIVERTEX_ARC_RUNTIME        1083
+#define IDC_EUCLIDEAN_SIGNATURES_REMAINING2 1084
+#define IDC_BIVERTEX_ARC_REMAINING      1084
+#define IDC_EUCLIDEAN_SIGNATURES_PCT3   1085
+#define IDC_PLACING_PIECES_PCT          1085
+#define IDC_EUCLIDEAN_SIGNATURES_RUNTIME3 1086
+#define IDC_PLACING_PIECES_RUNTIME      1086
+#define IDC_EUCLIDEAN_SIGNATURES_REMAINING3 1087
+#define IDC_PLACING_PIECES_REMAINING    1087
+#define IDC_EUCLIDEAN_SIGNATURES_PCT4   1088
+#define IDC_COMPARING_PIECES_PCT        1088
+#define IDC_EUCLIDEAN_SIGNATURES_RUNTIME4 1089
+#define IDC_COMPARING_PIECES_RUNTIME    1089
+#define IDC_EUCLIDEAN_SIGNATURES_REMAINING4 1090
+#define IDC_COMPARING_PIECES_REMAINING  1090
+#define IDC_IDC_CHECKING_FITS_PCT       1091
+#define IDC_CHECKING_FITS_PCT           1091
+#define IDC_CHECKING_FITS_RUNTIME       1092
+#define IDC_CHECKING_FITS_REMAINING     1093
 
 // Next default values for new objects
 // 
@@ -83,7 +111,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        133
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1029
+#define _APS_NEXT_CONTROL_VALUE         1049
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

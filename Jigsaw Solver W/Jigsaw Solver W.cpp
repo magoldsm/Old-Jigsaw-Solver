@@ -109,7 +109,7 @@ BOOL CJigsawSolverWApp::InitInstance()
 	return FALSE;
 }
 
-#ifdef _DEBUG
+//#ifdef _DEBUG
 void DebugOutput(const char* szFormat, ...)
 {
 	char szBuff[10240];
@@ -120,6 +120,6 @@ void DebugOutput(const char* szFormat, ...)
 
 	OutputDebugStringA(szBuff);
 }
-#endif
+//#endif
 
 

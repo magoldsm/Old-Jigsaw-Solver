@@ -102,6 +102,10 @@
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;$(SolutionDir)..\GridCtrl-master;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -177,6 +181,10 @@
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Jigsaw Solver;$(SolutionDir)..\GridCtrl-master;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -200,7 +208,6 @@
     <ClInclude Include="..\Jigsaw Solver\CParameters.h" />
     <ClInclude Include="..\Jigsaw Solver\CPiece.h" />
     <ClInclude Include="..\Jigsaw Solver\CProgress.h" />
-    <ClInclude Include="..\Jigsaw Solver\CTracker.h" />
     <ClInclude Include="..\Jigsaw Solver\Euclidean Signature.h" />
     <ClInclude Include="..\Jigsaw Solver\Lock.h" />
     <ClInclude Include="..\Jigsaw Solver\Savitsy-Golay.h" />
@@ -230,7 +237,11 @@
     <ClCompile Include="..\Jigsaw Solver\Euclidean Signature.cpp" />
     <ClCompile Include="..\Jigsaw Solver\Lock.cpp" />
     <ClCompile Include="..\Jigsaw Solver\Savitsky-Golay.cpp" />
-    <ClCompile Include="..\Jigsaw Solver\SignatureSimilarity.cpp" />
+    <ClCompile Include="..\Jigsaw Solver\SignatureSimilarity.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MaxSpeed</Optimization>
+      <IntrinsicFunctions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</IntrinsicFunctions>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\Jigsaw Solver\Solver.cpp" />
     <ClCompile Include="..\Jigsaw Solver\Utilities.cpp" />
     <ClCompile Include="CPlot.cpp" />

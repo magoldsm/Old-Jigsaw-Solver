@@ -28,15 +28,19 @@ public:
 	void Erase();
 	void* Plot(const Curve& curve, COLORREF color = 0, int width = 1);
 	void Delete(void* item);
+	void Text(std::string text, int x, int y);
 
 
 private:
 	void Repaint();
 
 
-	std::list<Curve>		m_Curves;			// Set of curves to be plotted
-	std::list<COLORREF>		m_Colors;
-	std::list<int>			m_Widths;
-	CBrush					m_brushBG;
+	std::list<Curve>			m_Curves;			// Set of curves to be plotted
+	std::list<COLORREF>			m_Colors;
+	std::list<int>				m_Widths;
+	CBrush						m_brushBG;
+
+	std::vector<std::string>	m_Strings;
+	std::vector<CPoint>			m_stringLocations;
 };
 

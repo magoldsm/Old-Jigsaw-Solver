@@ -93,6 +93,7 @@ void CParameters::PutStringParam(const char * name, const char* value)
 }
 
 CParameters::CParameters()
+	: m_bSave(false)
 {
 	LSTATUS res = ::RegCreateKeyExA(HKEY_CURRENT_USER, "Software\\WinStock Software\\", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &m_regKey, NULL);
 
@@ -134,6 +135,8 @@ CParameters::CParameters()
 
 	m_bPlotBVD = GetDwordParam("PlotBVD", 0);
 	m_bShowPScores = GetDwordParam("ShowPScores", 0);
+
+	GetStringParam("PlotLevel", m_szPlotLevel, sizeof(m_szPlotLevel), "");
 }
 
 
@@ -180,5 +183,73 @@ void CParameters::SaveParams()
 		PutDwordParam((string("K3_") + to_string(i)).data(), (DWORD)(m_K3[i] * 1000.0));
 	}
 
+	PutDwordParam("PlotBVD", m_bPlotBVD);
 	PutDwordParam("ShowPScores", m_bShowPScores);
+	PutStringParam("PlotLevel", m_szPlotLevel);
+}
+
+void CParameters::Serialize(CArchive & ar)
+{
+	if (ar.IsStoring())
+	{
+		ar << m_nSGOrder;
+		ar << m_nSGWindow;
+		ar << m_nLambda0;
+		ar << m_nLambda1;
+		ar << m_nAlpha;
+		ar << m_nBeta;
+		ar << m_nGamma;
+		ar << m_nNu;
+		ar << m_dRho;
+		ar << m_nJmax;
+		ar << m_nC1;
+		ar << m_nC2;
+		ar << m_dK1;
+		ar << m_dK2;
+		ar << m_dK4;
+		ar << m_dEpsilon;
+		ar << m_dEta1;
+		ar << m_dEta2;
+		ar << m_dQ1;
+		ar << m_dQ2;
+		ar << m_dQ2Star;
+		ar << m_dQ3;
+		ar << m_nJStar;
+
+		for (double var : m_P0) ar << var;
+		for (double var : m_M0) ar << var;
+		for (double var : m_MU0) ar << var;
+		for (double var : m_K3) ar << var;
+	}
+	else
+	{
+		ar >> m_nSGOrder;
+		ar >> m_nSGWindow;
+		ar >> m_nLambda0;
+		ar >> m_nLambda1;
+		ar >> m_nAlpha;
+		ar >> m_nBeta;
+		ar >> m_nGamma;
+		ar >> m_nNu;
+		ar >> m_dRho;
+		ar >> m_nJmax;
+		ar >> m_nC1;
+		ar >> m_nC2;
+		ar >> m_dK1;
+		ar >> m_dK2;
+		ar >> m_dK4;
+		ar >> m_dEpsilon;
+		ar >> m_dEta1;
+		ar >> m_dEta2;
+		ar >> m_dQ1;
+		ar >> m_dQ2;
+		ar >> m_dQ2Star;
+		ar >> m_dQ3;
+		ar >> m_nJStar;
+
+		for (double var : m_P0) ar >> var;
+		for (double var : m_M0) ar >> var;
+		for (double var : m_MU0) ar >> var;
+		for (double var : m_K3) ar >> var;
+	}
 }

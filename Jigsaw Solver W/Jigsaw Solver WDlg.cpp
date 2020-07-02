@@ -47,6 +47,13 @@ LRESULT CProgress::Plot(const Curve& curve, COLORREF color, int width)
 }
 
 
+void CProgress::Text(std::string text, int x, int y)
+{
+	LRESULT lr = ::SendMessage(m_hWndGUI, WM_TEXT, (WPARAM)(&CPoint(x, y)), (LPARAM)&text);
+	//Sleep(10);
+}
+
+
 void CProgress::Erase()
 {
 	::SendMessage(m_hWndGUI, WM_ERASE, 0, 0L);
@@ -57,6 +64,12 @@ void CProgress::Delete(LRESULT item)
 {
 	::SendMessage(m_hWndGUI, WM_DELETE, 0, item);
 	//Sleep(10);
+}
+
+
+void CProgress::SavePuzzle()
+{
+	::SendMessage(m_hWndGUI, WM_SAVE, 0, 0L);
 }
 
 
@@ -99,7 +112,8 @@ END_MESSAGE_MAP()
 
 CJigsawSolverWDlg::CJigsawSolverWDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_JIGSAWSOLVERW_DIALOG, pParent)
-	, m_bShowPScores(FALSE)
+	, m_bPause(FALSE)
+	, m_SolverThread(nullptr)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -175,6 +189,28 @@ void CJigsawSolverWDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECKING_FITS, m_barChecking);
 	DDX_Check(pDX, IDC_PLOT_BVD, m_bPlotBVD);
 	DDX_Check(pDX, IDC_SHOW_PSCORES, m_bShowPScores);
+	if (!pDX->m_bSaveAndValidate)
+		m_strPlotLevel = m_szPlotLevel;
+	DDX_CBString(pDX, IDC_PLOT_LEVEL, m_strPlotLevel);
+	if (pDX->m_bSaveAndValidate)
+		strcpy_s(m_szPlotLevel, sizeof(m_szPlotLevel), CT2A(m_strPlotLevel));
+	DDX_Check(pDX, IDC_PAUSE, m_bPause);
+	DDX_Check(pDX, IDC_SAVE_PROGRESS, m_bSave);
+	DDX_Control(pDX, IDC_EUCLIDEAN_SIGNATURES_PCT, m_pctEuclidean);
+	DDX_Control(pDX, IDC_EUCLIDEAN_SIGNATURES_RUNTIME, m_runtimeEuclidean);
+	DDX_Control(pDX, IDC_EUCLIDEAN_SIGNATURES_REMAINING, m_remainingEuclidean);
+	DDX_Control(pDX, IDC_BIVERTEX_ARC_PCT, m_pctBivertex);
+	DDX_Control(pDX, IDC_BIVERTEX_ARC_RUNTIME, m_runtimeBivertex);
+	DDX_Control(pDX, IDC_BIVERTEX_ARC_REMAINING, m_remainingBivertex);
+	DDX_Control(pDX, IDC_PLACING_PIECES_PCT, m_pctPlacing);
+	DDX_Control(pDX, IDC_PLACING_PIECES_RUNTIME, m_runtimePlacing);
+	DDX_Control(pDX, IDC_PLACING_PIECES_REMAINING, m_remainingPlacing);
+	DDX_Control(pDX, IDC_COMPARING_PIECES_PCT, m_pctComparing);
+	DDX_Control(pDX, IDC_COMPARING_PIECES_RUNTIME, m_runtimeComparing);
+	DDX_Control(pDX, IDC_COMPARING_PIECES_REMAINING, m_remainingComparing);
+	DDX_Control(pDX, IDC_CHECKING_FITS_PCT, m_pctChecking);
+	DDX_Control(pDX, IDC_CHECKING_FITS_RUNTIME, m_runtimeChecking);
+	DDX_Control(pDX, IDC_CHECKING_FITS_REMAINING, m_remainingChecking);
 }
 
 BEGIN_MESSAGE_MAP(CJigsawSolverWDlg, CDialogEx)
@@ -187,10 +223,38 @@ BEGIN_MESSAGE_MAP(CJigsawSolverWDlg, CDialogEx)
 	ON_MESSAGE(WM_ERASE, &CJigsawSolverWDlg::OnErase)
 	ON_MESSAGE(WM_PLOT, &CJigsawSolverWDlg::OnPlot)
 	ON_MESSAGE(WM_DELETE, &CJigsawSolverWDlg::OnDelete)
+	ON_MESSAGE(WM_TEXT, &CJigsawSolverWDlg::OnText)
+	ON_MESSAGE(WM_SAVE, &CJigsawSolverWDlg::OnSave)
+	ON_BN_CLICKED(IDC_PAUSE, &CJigsawSolverWDlg::OnBnClickedPause)
+	ON_BN_CLICKED(IDC_RESUME, &CJigsawSolverWDlg::OnBnClickedResume)
+	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 
 // CJigsawSolverWDlg message handlers
+
+struct BarControls
+{
+	CProgressCtrl		CJigsawSolverWDlg::*bar;
+	CStatic				CJigsawSolverWDlg::*pct;
+	CStatic				CJigsawSolverWDlg::*runtime;
+	CStatic				CJigsawSolverWDlg::*remaining;
+};
+
+#define BC(x) \
+	&CJigsawSolverWDlg::m_bar##x, \
+	&CJigsawSolverWDlg::m_pct##x, \
+	&CJigsawSolverWDlg::m_runtime##x, \
+	&CJigsawSolverWDlg::m_remaining##x
+
+
+static BarControls bc[] = {
+	{ BC(Euclidean) },
+	{ BC(Bivertex) },
+	{ BC(Placing) },
+	{ BC(Comparing) },
+	{ BC(Checking) },
+};
 
 BOOL CJigsawSolverWDlg::OnInitDialog()
 {
@@ -229,6 +293,13 @@ BOOL CJigsawSolverWDlg::OnInitDialog()
 	m_barPlacing.SetRange(0, 1000);
 	m_barComparing.SetRange(0, 1000);
 	m_barChecking.SetRange(0, 1000);
+
+	for (int idx = 0; idx < (sizeof(bc) / sizeof(bc[0])); idx++)
+	{
+		(this->*bc[idx].pct).SetWindowText(_T(""));
+		(this->*bc[idx].runtime).SetWindowText(_T(""));
+		(this->*bc[idx].remaining).SetWindowText(_T(""));
+	}
 
 	OnEnKillfocusJstar();
 
@@ -367,58 +438,50 @@ void CJigsawSolverWDlg::OnBnClickedSolve()
 {
 	UpdateData();
 
-	::AfxBeginThread([](LPVOID pParam)->UINT {
-		Solver();
+	m_SolverThread = ::AfxBeginThread([](LPVOID pParam)->UINT {
+		Solver(false);
 		return 0;
 	}, nullptr);
 }
 
+
 LRESULT CJigsawSolverWDlg::OnProgress(WPARAM wParam, LPARAM lParam)
 {
-	UpdateBar(m_barEuclidean, Progress(PROGRESS_EUCLID));
-	UpdateBar(m_barBivertex, Progress(PROGRESS_BIVERTEX));
-	UpdateBar(m_barPlacing, Progress(PROGRESS_PLACING));
-	UpdateBar(m_barComparing, Progress(PROGRESS_COMPARING));
-	UpdateBar(m_barChecking, Progress(PROGRESS_CHECKING));
-
-	/*
-	
-	    if(isempty(timerhs))
-        tstr = '';
-    else
-        if(ps == 1)
-            if(isa(timerhs, 'uint64'))
-                timerhs = toc(timerhs);
-            end            
-            tstr = ['Ran ' sec2str(timerhs)];           
-        else
-            if(ps == 0)
-                ttime = toc(timerhs);           
-                tstr = {[sec2str(ttime) ' Running' ]};
-            else
-                ttime = toc(timerhs);           
-                tstr = {[sec2str(ttime) ' Running' ]; ['~' sec2str(ttime/ps-ttime) ' Remaining']};
-            end
-        end
-    end
-    set(ths(1, 1), 'String', [ num2str(floor(1000*ps)/10) '% Complete' ]);
-    set(ths(1, 2), 'String', tstr);
-    set(ahs, 'Children', [ths(1, 1) ths(1, 2) shs]);
-
-	*/
+	UpdateBar(0, Progress(PROGRESS_EUCLID));
+	UpdateBar(1, Progress(PROGRESS_BIVERTEX));
+	UpdateBar(2, Progress(PROGRESS_PLACING));
+	UpdateBar(3, Progress(PROGRESS_COMPARING));
+	UpdateBar(4, Progress(PROGRESS_CHECKING));
 
 	return 0;
 }
 
 
-void CJigsawSolverWDlg::UpdateBar(CProgressCtrl& ctrl, CProgressBar & bar)
+void CJigsawSolverWDlg::UpdateBar(int idx, CProgressBar & bar)
 {
 	int nLower, nUpper;
-	ctrl.GetRange(nLower, nUpper);
+	(this->*bc[idx].bar).GetRange(nLower, nUpper);
 	int nDiff = nUpper - nLower;
 	int val = (int)((bar.m_Percent * nDiff) + nLower);
 
-	ctrl.SetPos(val);
+	(this->*bc[idx].bar).SetPos(val);
+
+	CString str;
+	str.Format(_T("%.1f%% Complete"), 100*bar.m_Percent);
+	(this->*bc[idx].pct).SetWindowText(str);
+
+	LARGE_INTEGER now;
+	::QueryPerformanceCounter(&now);
+	long elapsed = (long)((now.QuadPart - bar.m_Time.QuadPart) / (1.0*liFrequency.QuadPart));
+
+	str = CvtElapsedTime(elapsed);
+	(this->*bc[idx].runtime).SetWindowText(str + _T(" Running"));
+
+	if (bar.m_Percent < 1.0)
+	{
+		str = CvtElapsedTime((long)(elapsed / bar.m_Percent));
+		(this->*bc[idx].remaining).SetWindowText(str + _T(" Remaining"));
+	}
 }
 
 LRESULT CJigsawSolverWDlg::OnErase(WPARAM wParam, LPARAM lParam)
@@ -433,6 +496,37 @@ LRESULT CJigsawSolverWDlg::OnPlot(WPARAM wParam, LPARAM lParam)
 	return (LRESULT) m_Plot.Plot(*((Curve*)lParam), wParam&0xffffff, (wParam>>24)&0xff);
 }
 
+LRESULT CJigsawSolverWDlg::OnText(WPARAM wParam, LPARAM lParam)
+{
+	CPoint pt = *(CPoint*)(wParam);
+	std::string str = *(std::string*)(lParam);
+	m_Plot.Text(str, pt.x, pt.y);
+	return 0;
+}
+
+LRESULT CJigsawSolverWDlg::OnSave(WPARAM wParam, LPARAM lParam)
+{
+		CFile file(_T("CurrentPuzzleData.puz"), CFile::modeWrite | CFile::typeBinary | CFile::modeCreate);
+		CArchive ar(&file, CArchive::store);
+	
+		ar << AverageLength << AverageSize << Dx << Dy << Dkappa << Dkappas;
+
+		pParams->Serialize(ar);
+		
+		ar << Placements.size();
+		for (CPlacement& p : Placements) p.Serialize(ar);
+		
+		ar << Tracker.size();
+		for (CTracker& t : Tracker) t.Serialize(ar);
+
+		ar << Pieces.size();
+		for (CPiece& p : Pieces) p.Serialize(ar);
+
+		PScores.Serialize(ar);
+
+	return 0;
+}
+
 LRESULT CJigsawSolverWDlg::OnDelete(WPARAM wParam, LPARAM lParam)
 {
 	m_Plot.Delete((void*)lParam);
@@ -444,43 +538,59 @@ void CPScore::Display(double dP0)
 	CPScoreDlg dlg(*this, dP0);
 
 	dlg.DoModal();
-
-	//cout << "    ";
-	//for (size_t i = 0; i < m_Size; i++)
-	//{
-	//	cout << setw(5) << i << " ";
-	//}
-	//cout << endl;
-	//for (size_t i = 0; i < m_Size; i++)
-	//{
-	//	cout << setw(2) << i << "  ";
-	//	for (size_t j = 0; j < m_Size; j++)
-	//	{
-	//		MatrixXd& arcscore = (*this)(i, j);
-	//		if (arcscore.cols() == 0 && arcscore.rows() == 0)
-	//			cout << "   [] ";
-	//		else
-	//		{
-	//			char buff[100];
-	//			sprintf_s(buff, 100, "%dx%d ", (int)arcscore.rows(), (int)arcscore.cols());
-	//			cout << setw(6) << buff;
-	//		}
-	//	}
-	//	cout << endl;
-	//}
 }
 
 void CPScore::Display(size_t nRow, size_t nCol, double dP0)
 {
-	//MatrixXd& arcscore = (*this)(nRow, nCol);
-	//for (int i = 0; i < arcscore.rows(); i++)
-	//{
-	//	for (int j = 0; j < arcscore.cols(); j++)
-	//	{
-	//		cout << setprecision(4) << setw(8) << arcscore(i, j);
-	//	}
-	//	cout << endl;
-	//}
+	__debugbreak();
+}
+
+void CPScore::Serialize(CArchive & ar)
+{
+	if (ar.IsStoring())
+	{
+		ar << m_Size;
+		for (int i = 0; i < m_Size*m_Size; i++)
+			ar << m_ArcScores[i];
+	}
+	else
+	{
+		ar >> m_Size;
+		if (m_ArcScores) delete[] m_ArcScores;
+		SetSize(m_Size);
+		for (int i = 0; i < m_Size*m_Size; i++)
+			ar >> m_ArcScores[i];
+	}
 }
 
 
+
+
+void CJigsawSolverWDlg::OnBnClickedPause()
+{
+	UpdateData();
+	
+	if (m_bPause)
+		Pauser.Lock();
+	else
+		Pauser.Unlock();
+}
+
+
+void CJigsawSolverWDlg::OnBnClickedResume()
+{
+	UpdateData();
+
+	m_SolverThread = ::AfxBeginThread([](LPVOID pParam)->UINT {
+		Solver(true);
+		return 0;
+	}, nullptr);
+}
+
+
+void CJigsawSolverWDlg::OnClose()
+{
+	m_SolverThread->SuspendThread();
+
+	__super::OnClose();
+}

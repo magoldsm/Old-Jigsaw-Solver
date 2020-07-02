@@ -36,9 +36,6 @@
     <ClInclude Include="..\Jigsaw Solver\CPiece.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Jigsaw Solver\CTracker.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\Jigsaw Solver\Euclidean Signature.h">
       <Filter>Header Files</Filter>
     </ClInclude>

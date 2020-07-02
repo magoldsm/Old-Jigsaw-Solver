@@ -7,6 +7,8 @@ using namespace Eigen;
 using namespace cv;
 using namespace std;
 
+CCriticalSection Pauser;
+
 void MyNormm(Eigen::MatrixXd& mat, Vector2d& dmin, Vector2d& dmax)
 {
 	int imin, imax;
@@ -75,7 +77,7 @@ PlotContours(vector<Curve>& Curves, const char* windowName, bool bOverlay)
 		{
 			int dIndex = bOverlay ? 0 : i;
 			Curve& norm = Norms[i];
-			for (int j = 0; j < norm.size(); j++)
+			for (int j = 0; j < norm.rows(); j++)
 			{
 				int X = (int)(norm(j, 0) * 511);
 				int Y = (int)(norm(j, 1) * 511);
@@ -273,4 +275,79 @@ AllExcept(vector<int>& dest, size_t size, vector<int> except)
 		if (except[i] != -1)
 			dest.erase(dest.begin() + except[i]);
 }
+
+CString CvtElapsedTime(long elapsed)
+{
+	CString str;
+
+	if (elapsed < 60)
+	{
+		str.Format(_T("%d Seconds"), elapsed);
+	}
+	else
+	{
+		long seconds = elapsed % 60;
+		long minutes = elapsed / 60;
+		if (minutes < 60)
+		{
+			str.Format(_T("%d Min %d Sec"), minutes, seconds);
+		}
+		else
+		{
+			minutes %= 60;
+			long hours = elapsed / 3600;
+			if (hours < 24)
+			{
+				str.Format(_T("%d H  %d M  %d S"), hours, minutes, seconds);
+			}
+			else
+			{
+				long days = elapsed / (3600 * 24);
+				hours %= 24;
+				str.Format(_T("%d D  %d H  %d M  %d S"), days, hours, minutes, seconds);
+			}
+		}
+	}
+
+	return str;
+}
+
+//CArchive & operator<<(CArchive& ar, Eigen::Vector4d & v)
+//{
+//	ar << v[0] << v[1] << v[2] << v[3];
+//	return ar;
+//}
+//
+//CArchive & operator>>(CArchive& ar, Eigen::Vector4d & v)
+//{
+//	ar >> v[0] >> v[1] >> v[2] >> v[3];
+//	return ar;
+//}
+//
+//CArchive & operator<<(CArchive & ar, Eigen::Vector2i & v)
+//{
+//	ar << v[0] << v[1];
+//	return ar;
+//}
+//
+//CArchive & operator>>(CArchive & ar, Eigen::Vector2i & v)
+//{
+//	ar >> v[0] >> v[1];
+//	return ar;
+//}
+//
+//CArchive & operator<<(CArchive & ar, Eigen::MatrixX2i & m)
+//{
+//	ar << v[0] << v[1];
+//	return ar;
+//}
+//
+//CArchive & operator>>(CArchive & ar, Eigen::MatrixX2i & m)
+//{
+//	ar >> v[0] >> v[1];
+//	return ar;
+//}
+//
+//template<class T, int r, int c>
+//CArchive& operator>>(CArchive& ar, Matrix<T, r, c> m);
 

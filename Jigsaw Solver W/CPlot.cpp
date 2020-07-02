@@ -94,9 +94,7 @@ using itWidth = std::list<int>::iterator;
 
 void CPlot::OnPaint()
 {
-	CPaintDC dc(this); // device context for painting
-					   // TODO: Add your message handler code here
-					   // Do not call CWnd::OnPaint() for painting messages
+	CPaintDC dc(this); 
 
 	double xScale, yScale, minX, minY;
 	BoundingBox(m_Curves, xScale, yScale, minX, minY);
@@ -168,6 +166,27 @@ void CPlot::OnPaint()
 		itcolor++;
 		itwidth++;
 	}
+
+	CFont* pDefaultGUIFont = CFont::FromHandle((HFONT)GetStockObject(DEFAULT_GUI_FONT));
+	LOGFONT lf;
+	pDefaultGUIFont->GetLogFont(&lf);
+	lf.lfHeight = 36;
+
+	CFont fontDraw;
+	fontDraw.CreateFontIndirect(&lf);
+
+	CFont* pOldFont = dc.SelectObject(&fontDraw);
+
+	for (int i = 0; i < m_Strings.size(); i++)
+	{
+		CString str(m_Strings[i].c_str());
+		CPoint& pt = m_stringLocations[i];
+		int x = (int)((pt.x - minX) / xScale);
+		int y = rectClient.Height() - (int)((pt.y - minY) / yScale);
+		dc.TextOut(x, y, str);
+	}
+
+	dc.SelectObject(pOldFont);
 }
 
 
@@ -227,6 +246,14 @@ void CPlot::Delete(void * item)
 		itcolor++;
 		itwidth++;
 	}
+}
+
+void CPlot::Text(std::string text, int x, int y)
+{
+	m_Strings.push_back(text);
+	m_stringLocations.push_back(CPoint(x, y));
+
+	Repaint();
 }
 
 void CPlot::Repaint()

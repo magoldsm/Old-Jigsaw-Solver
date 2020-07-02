@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include "CPiece.h"
+#include "Utilities.h"
 
 using namespace std;
 using namespace cv;
@@ -117,5 +118,51 @@ void CPiece::operator=(std::vector<cv::Point2d>& contour)
 	{
 		m_Contour(i, 0) = contour[i].x;
 		m_Contour(i, 1) = contour[i].y;
+	}
+}
+
+void CPiece::Serialize(CArchive & ar)
+{
+	if (ar.IsStoring())
+	{
+		ar << m_Contour;
+		ar << m_Signature;
+		ar << m_Weight;
+		ar << m_nActive;
+		m_Arcs.Serialize(ar);
+		ar << m_Pt2Arc;
+	}
+	else
+	{
+		ar >> m_Contour;
+		ar >> m_Signature;
+		ar >> m_Weight;
+		ar >> m_nActive;
+		m_Arcs.Serialize(ar);
+		ar >> m_Pt2Arc;
+	}
+}
+
+void BATable::Serialize(CArchive & ar)
+{
+	if (ar.IsStoring())
+	{
+		ar << rows();
+		for (int r = 0; r < rows(); r++)
+		{
+			ar << (*this)(r).m_Contour;
+			ar << (*this)(r).m_Signature;
+		}
+	}
+	else
+	{
+		size_t rows;
+		ar >> rows;
+		this->resize(rows, 1);
+		for (int r = 0; r < rows; r++)
+		{
+			ar >> (*this)(r).m_Contour;
+			ar >> (*this)(r).m_Signature;
+		}
 	}
 }

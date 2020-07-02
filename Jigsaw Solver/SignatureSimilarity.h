@@ -27,6 +27,7 @@ public:
 	std::vector<int>				m_SP_Bdry_PtIcs_3;
 	std::vector<int>				m_SP_Bdry_PtIcs;
 
+	void Serialize(CArchive& ar);
 };
 
 
@@ -38,6 +39,7 @@ struct GTransform
 	double		theta;
 	double		dx;
 	double		dy;
+	void Serialize(CArchive& ar);
 };
 
 
@@ -56,6 +58,8 @@ public:
 	GTransform						m_gFit;
 	double							m_Score;
 	int								m_Slot;
+
+	void Serialize(CArchive& ar);
 };
 
 
@@ -68,11 +72,17 @@ public:
 		, m_gLock(std::move(gLock))
 		, m_Fit(std::move(Fit))
 	{}
+	CPlacement(CArchive& ar);
 	int								m_nPiece;
 	Eigen::Vector4d					m_Score;
 	GTransform						m_gLock;
 	CFit							m_Fit;
 	std::vector<int>				m_Neighbors;
+
+	void Serialize(CArchive& ar);
+
+private:
+	
 };
 
 void PlacePieces();
@@ -88,7 +98,10 @@ public:
 	void SetSize(size_t sz);
 	size_t GetSize() { return m_Size; }
 
-	bool IsEmpty(size_t nRow, size_t nCol) { return m_ArcScores[nRow*m_Size + nCol].size() == 0; }
+	bool IsEmpty(size_t nRow, size_t nCol)
+	{
+		return m_ArcScores[nRow*m_Size + nCol].size() == 0;
+	}
 
 	Eigen::MatrixXd& operator()(size_t nRow, size_t nCol)
 	{
@@ -98,9 +111,15 @@ public:
 	void Display(double dP0 = 1.0);
 	void Display(size_t nRow, size_t nCol, double dP0 = 1.0);
 
+	void Serialize(CArchive& ar);
+
 private:
 	size_t				m_Size;
 	Eigen::MatrixXd*	m_ArcScores;
 };
 
 Curve TransformCurve(const Curve& points, const GTransform& trans);
+
+extern std::vector<CPlacement> Placements;
+extern std::vector<CTracker> Tracker;
+extern CPScore PScores;

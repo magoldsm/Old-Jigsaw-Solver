@@ -139,8 +139,11 @@ OUTPUTS
 */
 
 void
-Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTransform& gLock, double K3, Indices& D_Delta_3_Ics, Indices& Dtilde_Delta_3_Ics, Indices& D_Delta_2_Ics, Indices& Dtilde_Delta_2_Ics, LRESULT& plotHandle)
+Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTransform& gLock, double K3, Indices& D_Delta_3_Ics, Indices& Dtilde_Delta_3_Ics, Indices& D_Delta_2_Ics, Indices& Dtilde_Delta_2_Ics, bool bPlot, LRESULT& plotHandle)
 {
+	Pauser.Lock();
+	Pauser.Unlock();
+
 	int nC = (int)CDelta.rows();
 	int nCtilde = (int)CtildeDelta.rows();
 	Curve CDeltam1;
@@ -149,10 +152,12 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	double thetaj = 0.0;
 	Vector2d cj(0.0, 0.0);
 
-	LRESULT inith = Progress.Plot(TransformCurve(CDelta, g0));
-
+	LRESULT inith;
 	LRESULT debugh = 0;
 	LRESULT debughtilde = 0;
+
+	if (bPlot)
+		inith = Progress.Plot(TransformCurve(CDelta, g0));
 
 	circShift(CDelta, CDeltam1, -1);
 
@@ -177,23 +182,23 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		bNearby.col(c1) = (CtildeDelta.rowwise() - TransformPointAboutCM(CDelta.row(c1), g0, Vector2d(0, 0))).rowwise().norm().array() < dStarK1;
 	FOR_END
 
-	// The goal is now to create 2 sets: EDeltaK1 and EtildeDeltaK1.
-	//
-	// EDeltaK1			is the set of points from CDelta that interact with CtildeDelta.
+		// The goal is now to create 2 sets: EDeltaK1 and EtildeDeltaK1.
+		//
+		// EDeltaK1			is the set of points from CDelta that interact with CtildeDelta.
 
-	// EtildeDeltaK1	is a vector of sets of points.  The ith element of EtildeDeltaK1
-	//					is the set of points that interact with the ith point of EDeltaK1.
+		// EtildeDeltaK1	is a vector of sets of points.  The ith element of EtildeDeltaK1
+		//					is the set of points that interact with the ith point of EDeltaK1.
 
-	// bNearby(row,col)	Each column corresponds to a point in CDelta, each row to a point
-	//					in CtildeDelta.
+		// bNearby(row,col)	Each column corresponds to a point in CDelta, each row to a point
+		//					in CtildeDelta.
 
-	// totsCol			is the number of trues in each column of bNearby.  It is the number
-	//					of points in CtildeDelta that interact with the CDelta of that column.
+		// totsCol			is the number of trues in each column of bNearby.  It is the number
+		//					of points in CtildeDelta that interact with the CDelta of that column.
 
-	// totsRow			is the number of trues in each row of bNearby.  It is the number
-	//					of points in CDelta that interact with the CtildeDelta of that row.
+		// totsRow			is the number of trues in each row of bNearby.  It is the number
+		//					of points in CDelta that interact with the CtildeDelta of that row.
 
-	Matrix<Index, 1, -1> totsCol = bNearby.colwise().count();
+		Matrix<Index, 1, -1> totsCol = bNearby.colwise().count();
 	int nEDeltas = (int)(totsCol.array() > 0).count();
 
 	if (nEDeltas == 0)
@@ -248,19 +253,22 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	double r2 = normSquared.sum();
 	double rINF = normSquared.array().sqrt().maxCoeff();
 
-	if (debugh)
-		Progress.Delete(debugh);
+	if (bPlot)
+	{
+		if (debugh)
+			Progress.Delete(debugh);
 
-	Curve debugEDK = TransformCurve(EDeltaK1, g0);
-	debugh = Progress.Plot(debugEDK, RGB(255, 0, 0), -3);
+		Curve debugEDK = TransformCurve(EDeltaK1, g0);
+		debugh = Progress.Plot(debugEDK, RGB(255, 0, 0), -3);
 
 #ifdef _DEBUG
-	if (debughtilde)
-		Progress.Delete(debughtilde);
+		if (debughtilde)
+			Progress.Delete(debughtilde);
 
-	debughtilde = Progress.Plot(debugEtildeDeltaK1, RGB(0, 255, 0), -3);
-	//Sleep(500);
+		debughtilde = Progress.Plot(debugEtildeDeltaK1, RGB(0, 255, 0), -3);
+		//Sleep(500);
 #endif
+	}
 
 	// Convert g_0 from the form used in Assemble() (rotation around the
 	// origin) to the form used in Lock() (rotation around the center of
@@ -321,18 +329,21 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 		// Terminate the algorithm if fit is poor and getting worse.
 
-		if (dAvj > dj && dMedj >= K3*dStar)
+		if (dAvj > dj && dMedj >= K3 * dStar)
 		{
 			gj.theta -= thetaj;
 			gj.dx -= cj[0];
 			gj.dy -= cj[1];
 
-			if (plotHandle)
-				Progress.Delete(plotHandle);
+			if (bPlot)
+			{
+				if (plotHandle)
+					Progress.Delete(plotHandle);
 
-			Curve c = TransformCurveAboutCM(CDelta, gj, zCM);
+				Curve c = TransformCurveAboutCM(CDelta, gj, zCM);
 
-			plotHandle = Progress.Plot(c);
+				plotHandle = Progress.Plot(c);
+			}
 
 			break;
 		}
@@ -354,14 +365,17 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		wj += cj;
 		dj = dAvj;
 
-		if (plotHandle)
-			Progress.Delete(plotHandle);
+		if (bPlot)
+		{
+			if (plotHandle)
+				Progress.Delete(plotHandle);
 
-		Curve c = CDelta.rowwise() - zCM;
-		c = TransformCurve(c, gj);
-		c.rowwise() += zCM;
+			Curve c = CDelta.rowwise() - zCM;
+			c = TransformCurve(c, gj);
+			c.rowwise() += zCM;
 
-		plotHandle = Progress.Plot(c);
+			plotHandle = Progress.Plot(c);
+		}
 
 		// Step 7, termination condition
 
@@ -397,17 +411,27 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	bTest2Any.resize(nC);
 	bTest3Any.resize(nC);
 
-	FOR_START(c2, 0, nC)
-		diff[c2] = (CtildeDelta.rowwise() - TransformPointAboutCM(CDelta.row(c2), gj, zCM)).rowwise().norm().eval();
-		//test2[c2] = (((CtildeDelta.rowwise() - TransformPointAboutCM(CDelta.row(c2), gj, zCM)).rowwise().norm()).array() < K2dStar);
-		test2[c2] = (diff[c2].array() < K2dStar);
-		bTest2Any[c2] = test2[c2].any();
-		//test3[c2] = (((CtildeDelta.rowwise() - TransformPointAboutCM(CDelta.row(c2), gj, zCM)).rowwise().norm()).array() < K3dStar);
-		test3[c2] = (diff[c2].array() < K3dStar);
-		bTest3Any[c2] = test3[c2].any();
-		FOR_END
+	double cosj = cos(gj.theta);
+	double sinj = sin(gj.theta);
+	double dxj = gj.dx + zCM[0];
+	double dyj = gj.dy + zCM[1];
 
-	DebugOutput("-----------------------------------------\n");
+	double K2dStarSquared = K2dStar * K2dStar;
+	double K3dStarSquared = K3dStar * K3dStar;
+
+	FOR_START(c2, 0, nC)
+		Vector2d temp = CDelta.row(c2).array() - zCM.array();
+		Matrix<double, 1, 2> cdt;
+		cdt[0] = (temp(0) * cosj - temp(1) * sinj) + dxj;
+		cdt[1] = (temp(0) * sinj + temp(1) * cosj) + dyj;
+		diff[c2] = (CtildeDelta.rowwise() - cdt).rowwise().squaredNorm().eval();
+		test2[c2] = (diff[c2].array() < K2dStarSquared);
+		bTest2Any[c2] = test2[c2].any();
+		test3[c2] = (diff[c2].array() < K3dStarSquared);
+		bTest3Any[c2] = test3[c2].any();
+	FOR_END
+
+		//DebugOutput("-----------------------------------------\n");
 
 	for (int c2 = 0; c2 < nC; c2++)
 	{
@@ -434,16 +458,16 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		}
 	}
 
-	auto icmp = [](const void* p1, const void* p2) 
+	auto icmp = [](const void* p1, const void* p2)
 	{
-		return *(int*)p1 - *(int*)p2; 
+		return *(int*)p1 - *(int*)p2;
 	};
 	qsort(Dtilde_Delta_2_Ics.data(), Dtilde_Delta_2_Ics.size(), sizeof(int), icmp);
 	qsort(Dtilde_Delta_3_Ics.data(), Dtilde_Delta_3_Ics.size(), sizeof(int), icmp);
 
-	auto ucmp = [](int i, int j) 
+	auto ucmp = [](int i, int j)
 	{
-		return i == j; 
+		return i == j;
 	};
 	auto it = unique(Dtilde_Delta_2_Ics.begin(), Dtilde_Delta_2_Ics.end(), ucmp);
 	Dtilde_Delta_2_Ics.resize(std::distance(Dtilde_Delta_2_Ics.begin(), it));
@@ -451,20 +475,23 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	it = unique(Dtilde_Delta_3_Ics.begin(), Dtilde_Delta_3_Ics.end(), ucmp);
 	Dtilde_Delta_3_Ics.resize(std::distance(Dtilde_Delta_3_Ics.begin(), it));
 
-	Progress.Delete(inith);
-	if (debugh)
-		Progress.Delete(debugh);
+	if (bPlot)
+	{
+		Progress.Delete(inith);
+		if (debugh)
+			Progress.Delete(debugh);
 
-	if (debughtilde)
-		Progress.Delete(debughtilde);
+		if (debughtilde)
+			Progress.Delete(debughtilde);
 
 #ifdef _DEBUG
-	LRESULT t2 = Progress.Plot(Gather(CtildeDelta, Dtilde_Delta_2_Ics), RGB(255, 255, 0), -5);
-	LRESULT t3 = Progress.Plot(Gather(CtildeDelta, Dtilde_Delta_3_Ics), RGB(0, 255, 255), -5);
-	//Sleep(500);
-	Progress.Delete(t2);
-	Progress.Delete(t3);
+		LRESULT t2 = Progress.Plot(Gather(CtildeDelta, Dtilde_Delta_2_Ics), RGB(255, 255, 0), -5);
+		LRESULT t3 = Progress.Plot(Gather(CtildeDelta, Dtilde_Delta_3_Ics), RGB(0, 255, 255), -5);
+		//Sleep(500);
+		Progress.Delete(t2);
+		Progress.Delete(t3);
 #endif
+	}
 
 	// Convert gj to the form used in SignatureSimilarity()
 

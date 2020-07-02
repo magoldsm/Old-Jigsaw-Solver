@@ -6,7 +6,11 @@ struct BivertexArc
 	Curve	m_Signature;
 };
 
-using BATable = Eigen::Matrix<BivertexArc, Eigen::Dynamic, 1>;
+class BATable : public Eigen::Matrix<BivertexArc, Eigen::Dynamic, 1>
+{
+public:
+	void Serialize(CArchive& ar);
+};
 
 class CPiece
 {
@@ -23,7 +27,8 @@ public:
 	BATable			m_Arcs;
 	Eigen::VectorXi	m_Pt2Arc;
 
-	size_t		size() { return m_Contour.size(); }
+	void Serialize(CArchive& ar);
+
 };
 
 bool ReadPuzzle(std::vector<CPiece>& Pieces,  const char* filename);

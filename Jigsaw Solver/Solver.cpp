@@ -20,9 +20,14 @@ extern long AverageSize;
 extern double Dx, Dy, Dkappa, Dkappas;
 
 
-void Solver()
+LARGE_INTEGER liStart, liFrequency, liSG, liEuclid, liBVD, liTotal;
+
+
+void Solver(bool bResume)
 {
-	LARGE_INTEGER liStart, liFrequency, liSG, liEuclid, liBVD, liTotal;
+	double delta0 = 0;
+	double delta1 = 0;
+
 
 	QueryPerformanceFrequency(&liFrequency);
 
@@ -38,83 +43,118 @@ void Solver()
 	QueryPerformanceCounter(&liSG);
 	cout << "Savitsky-Golay " << (liSG.QuadPart - liStart.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
 
-	AverageSize = 0;
-	AverageLength = 0.0;
-	Weights.resize(nPieces);
-	atomic<int> nDone(0);
-	Progress.RestartReport(PROGRESS_EUCLID, true);
+	if (bResume)
+	{
+		CFile file(_T("CurrentPuzzleData.puz"), CFile::modeRead | CFile::typeBinary);
+		CArchive ar(&file, CArchive::load);
+		
+		ar >> AverageLength >> AverageSize >> Dx >> Dy >> Dkappa >> Dkappas;
+		pParams->Serialize(ar);
 
-	FOR_START(i, 0, nPieces)
-		CalcEuclideanSignature(Pieces[i], smoothVec, d1Vec, d2Vec);
+		size_t sz;
+		ar >> sz;
+		for (int i = 0; i < sz; i++)
+		{
+			CPlacement p(ar);
+			Placements.push_back(p);
+		}
+
+		ar >> sz;
+		Tracker.resize(sz);
+		for (int i = 0; i < sz; i++)
+			Tracker[i].Serialize(ar);
+
+		ar >> sz;
+		Pieces.resize(sz);
+		for (int i = 0; i < sz; i++)
+			Pieces[i].Serialize(ar);
+
+		PScores.Serialize(ar);
+
+	}
+	else
+	{
+		AverageSize = 0;
+		AverageLength = 0.0;
+		Weights.resize(nPieces);
+		atomic<int> nDone(0);
+		Progress.RestartReport(PROGRESS_EUCLID, true);
+
+		FOR_START(i, 0, nPieces)
+			CalcEuclideanSignature(Pieces[i], smoothVec, d1Vec, d2Vec);
 		nDone += 1;
 		Progress(PROGRESS_EUCLID).m_Percent = 1.0*nDone / nPieces;
 		Progress.UpdateReport();
-	FOR_END
+		FOR_END
 
-		for (int i = 0; i < nPieces; i++)
-		{
-			Curve& c = Pieces[i].m_Contour;
-			Curve cm1;
-			cm1.resizeLike(c);
+			for (int i = 0; i < nPieces; i++)
+			{
+				Curve& c = Pieces[i].m_Contour;
+				Curve cm1;
+				cm1.resizeLike(c);
 
-			circShift(c, cm1, -1);
+				circShift(c, cm1, -1);
 
-			Weights[i] = Pieces[i].m_Signature.col(0).array().abs().sum();
+				Weights[i] = Pieces[i].m_Signature.col(0).array().abs().sum();
 
-			AverageSize += (long)Pieces[i].m_Contour.size();
-			AverageLength += ((c.col(0) - cm1.col(0)).array().square() + (c.col(1) - cm1.col(1)).array().square()).sqrt().sum();
-		}
+				AverageSize += (long)Pieces[i].m_Contour.rows();
+				AverageLength += ((c.col(0) - cm1.col(0)).array().square() + (c.col(1) - cm1.col(1)).array().square()).sqrt().sum();
+			}
 
-	QueryPerformanceCounter(&liEuclid);
-	cout << "Eucliean Sigs " << (liEuclid.QuadPart - liSG.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
+		QueryPerformanceCounter(&liEuclid);
+		cout << "Eucliean Sigs " << (liEuclid.QuadPart - liSG.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
 
-	AverageSize /= (long)Pieces.size();
-	AverageLength /= Pieces.size();
+		AverageSize /= (long)Pieces.size();
+		AverageLength /= Pieces.size();
 
 
-	// Determine the characteristic size of the puzzle piece.
-	// Basically, find a bounding rectangle that covers all piece contours and one that covers all their signatures
+		// Determine the characteristic size of the puzzle piece.
+		// Basically, find a bounding rectangle that covers all piece contours and one that covers all their signatures
 
-	MaxD(Pieces, &CPiece::m_Contour, Dx, Dy);
-	MaxD(Pieces, &CPiece::m_Signature, Dkappa, Dkappas);
+		MaxD(Pieces, &CPiece::m_Contour, Dx, Dy);
+		MaxD(Pieces, &CPiece::m_Signature, Dkappa, Dkappas);
 
-	// We use these to determine delta0 and delta1.  These are the amount of "noise" we tolerate
-	// as we're dividing the pieces into their Bivertex Decompositions
+		// We use these to determine delta0 and delta1.  These are the amount of "noise" we tolerate
+		// as we're dividing the pieces into their Bivertex Decompositions
 
-	double delta0 = Dkappas / pParams->m_nLambda0;
-	double delta1 = Dkappa / pParams->m_nLambda1;
+		delta0 = Dkappas / pParams->m_nLambda0;
+		delta1 = Dkappa / pParams->m_nLambda1;
 
-	nDone = 0;
-	Progress.RestartReport(PROGRESS_BIVERTEX, true);
+		nDone = 0;
+		Progress.RestartReport(PROGRESS_BIVERTEX, true);
 
-	FOR_START(i, 0, nPieces)
-		BivertexArcDecomposition(Pieces[i], delta0, delta1/*, BA[i], Pt2Arc[i]*/);
-	nDone++;
-	Progress(PROGRESS_BIVERTEX).m_Percent = 1.0*nDone / nPieces;
-	Progress.UpdateReport();
-	FOR_END
+		FOR_START(i, 0, nPieces)
+			BivertexArcDecomposition(Pieces[i], delta0, delta1/*, BA[i], Pt2Arc[i]*/);
+		nDone++;
+		Progress(PROGRESS_BIVERTEX).m_Percent = 1.0*nDone / nPieces;
+		Progress.UpdateReport();
+		FOR_END
 
-	QueryPerformanceCounter(&liBVD);
-	cout << "Bivertex Decomp " << (liBVD.QuadPart - liEuclid.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
-
-	Progress.RestartReport(PROGRESS_EUCLID, true);
-	Progress(PROGRESS_EUCLID).m_Percent = 1.0;
-	Progress.UpdateReport();
-	Progress.RestartReport(PROGRESS_BIVERTEX, true);
-	Progress(PROGRESS_BIVERTEX).m_Percent = 1.0;
-	Progress.UpdateReport();
-
-	if (pParams->m_bPlotBVD)
-	{
-		for (int i = 0; i < nPieces; i++)
-		{
-			PlotDecomposition(Pieces[i], i);
-			PlotKappasDecomposition(Pieces[i], delta0, i);
-			//	waitKey(1);
-		}
+			QueryPerformanceCounter(&liBVD);
+		cout << "Bivertex Decomp " << (liBVD.QuadPart - liEuclid.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;
 	}
 
-	waitKey(0);
+	if (!bResume)
+	{
+		Progress.RestartReport(PROGRESS_EUCLID, true);
+			Progress(PROGRESS_EUCLID).m_Percent = 1.0;
+			Progress.UpdateReport();
+			Progress.RestartReport(PROGRESS_BIVERTEX, true);
+			Progress(PROGRESS_BIVERTEX).m_Percent = 1.0;
+			Progress.UpdateReport();
+
+			if (pParams->m_bPlotBVD)
+			{
+				for (int i = 0; i < nPieces; i++)
+				{
+					PlotDecomposition(Pieces[i], i);
+					PlotKappasDecomposition(Pieces[i], delta0, i);
+					//	waitKey(1);
+				}
+			}
+
+		waitKey(0);
+	}
 
 	PlacePieces();
 	QueryPerformanceCounter(&liTotal);

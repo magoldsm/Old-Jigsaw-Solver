@@ -18,6 +18,7 @@ bool AnyMatch(const Eigen::VectorXi& v1, const std::vector<int>& v2);
 Eigen::MatrixX2d Gather(const Eigen::MatrixX2d& src, std::vector<int> indices);
 void AllExcept(std::vector<int>& dest, size_t size, std::vector<int> except);
 
+CString CvtElapsedTime(long elapsed);
 
 template<class T>
 T RemoveElements(const  T& src, std::vector<int> remove)
@@ -62,3 +63,73 @@ void Append(T& dst, const T&src)
 	joined << dst, src;
 	dst = joined;
 }
+
+template<class T, int r>
+CArchive & operator<<(CArchive & ar, const Eigen::Matrix<T, r, 1>& m)
+{
+	ar << m.rows();
+	for (int r = 0; r < m.rows(); r++)
+		ar << m(r);
+	return ar;
+}
+
+template<class T, int r>
+CArchive & operator>>(CArchive & ar, Eigen::Matrix<T, r, 1>& m)
+{
+	size_t rows;
+	ar >> rows;
+	m.resize(rows, 1);
+	for (int r = 0; r < rows; r++)
+		ar >> m(r);
+	return ar;
+}
+
+template<class T, int r, int c>
+CArchive & operator<<(CArchive & ar, const Eigen::Matrix<T, r, c>& m)
+{
+	ar << m.rows();
+	ar << m.cols();
+	for (int r = 0; r < m.rows(); r++)
+		for (int c = 0; c < m.cols(); c++)
+			ar << m(r, c);
+	return ar;
+}
+
+
+template<class T, int r, int c>
+CArchive & operator>>(CArchive & ar, Eigen::Matrix<T, r, c>& m)
+{
+	size_t rows, cols;
+	ar >> rows;
+	ar >> cols;
+	m.resize(rows, cols);
+	for (int r = 0; r < rows; r++)
+		for (int c = 0; c < cols; c++)
+			ar >> m(r, c);
+	return ar;
+}
+
+template<class T>
+CArchive& operator<<(CArchive& ar, const std::vector<T>& v)
+{
+	ar << v.size();
+	for (int i = 0; i < v.size(); i++)
+		ar << v[i];
+	return ar;
+}
+
+
+template<class T>
+CArchive& operator>>(CArchive& ar, std::vector<T>& v)
+{
+	size_t sz;
+	ar >> sz;
+	v.resize(sz);
+
+	for (int i = 0; i < v.size(); i++)
+		ar >> v[i];
+	return ar;
+}
+
+
+extern CCriticalSection Pauser;

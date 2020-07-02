@@ -7,6 +7,8 @@ public:
 
 	void SaveParams();
 
+	void Serialize(CArchive& ar);
+
 	char m_szPath[4096];
 
 	int m_nSGOrder;
@@ -40,6 +42,9 @@ public:
 
 	BOOL m_bPlotBVD;
 	BOOL m_bShowPScores;
+	BOOL m_bSave;
+
+	char m_szPlotLevel[100];
 
 private:
 	HKEY	m_regKey;
