@@ -41,7 +41,16 @@ void CProgress::UpdateReport()
 
 LRESULT CProgress::Plot(const Curve& curve, COLORREF color, int width)
 {
-	LRESULT lr = ::SendMessage(m_hWndGUI, WM_PLOT, color | ((width&0xff)<<24), (LPARAM)&curve);
+	LRESULT lr = 0;
+
+	if (curve.rows())
+	{
+		DebugOutput("Plot: Curve(%d), color:%x, width:%d\n", curve.rows(), color, width);
+
+		lr = ::SendMessage(m_hWndGUI, WM_PLOT, color | ((width & 0xff) << 24), (LPARAM)&curve);
+	}
+	else
+		__debugbreak();
 	//Sleep(10);
 	return lr;
 }
@@ -470,18 +479,23 @@ void CJigsawSolverWDlg::UpdateBar(int idx, CProgressBar & bar)
 	str.Format(_T("%.1f%% Complete"), 100*bar.m_Percent);
 	(this->*bc[idx].pct).SetWindowText(str);
 
-	LARGE_INTEGER now;
-	::QueryPerformanceCounter(&now);
-	long elapsed = (long)((now.QuadPart - bar.m_Time.QuadPart) / (1.0*liFrequency.QuadPart));
-
-	str = CvtElapsedTime(elapsed);
-	(this->*bc[idx].runtime).SetWindowText(str + _T(" Running"));
-
-	if (bar.m_Percent < 1.0)
+	if (bar.m_Percent < 1.0 && bar.m_Time.QuadPart > 0)
 	{
-		str = CvtElapsedTime((long)(elapsed / bar.m_Percent));
+		LARGE_INTEGER now;
+		::QueryPerformanceCounter(&now);
+		long elapsed = (long)((now.QuadPart - bar.m_Time.QuadPart) / (1.0*liFrequency.QuadPart));
+
+		str = CvtElapsedTime(elapsed);
+		(this->*bc[idx].runtime).SetWindowText(str + _T(" Running"));
+
+		if (bar.m_Percent == 0)
+			(this->*bc[idx].remaining).SetWindowText(_T(""));
+		else
+		str = CvtElapsedTime((long)(elapsed / bar.m_Percent - elapsed));
 		(this->*bc[idx].remaining).SetWindowText(str + _T(" Remaining"));
 	}
+	else
+		(this->*bc[idx].remaining).SetWindowText(_T(""));
 }
 
 LRESULT CJigsawSolverWDlg::OnErase(WPARAM wParam, LPARAM lParam)
@@ -506,23 +520,26 @@ LRESULT CJigsawSolverWDlg::OnText(WPARAM wParam, LPARAM lParam)
 
 LRESULT CJigsawSolverWDlg::OnSave(WPARAM wParam, LPARAM lParam)
 {
-		CFile file(_T("CurrentPuzzleData.puz"), CFile::modeWrite | CFile::typeBinary | CFile::modeCreate);
-		CArchive ar(&file, CArchive::store);
-	
-		ar << AverageLength << AverageSize << Dx << Dy << Dkappa << Dkappas;
+	CString strFilename;
+	strFilename.Format(_T("CurrentPuzzleData%04d.spz"), Placements.size());
 
-		pParams->Serialize(ar);
-		
-		ar << Placements.size();
-		for (CPlacement& p : Placements) p.Serialize(ar);
-		
-		ar << Tracker.size();
-		for (CTracker& t : Tracker) t.Serialize(ar);
+	CFile file(strFilename, CFile::modeWrite | CFile::typeBinary | CFile::modeCreate);
+	CArchive ar(&file, CArchive::store);
 
-		ar << Pieces.size();
-		for (CPiece& p : Pieces) p.Serialize(ar);
+	ar << AverageLength << AverageSize << Dx << Dy << Dkappa << Dkappas;
 
-		PScores.Serialize(ar);
+	pParams->Serialize(ar);
+
+	ar << Placements.size();
+	for (CPlacement& p : Placements) p.Serialize(ar);
+
+	ar << Tracker.size();
+	for (CTracker& t : Tracker) t.Serialize(ar);
+
+	ar << Pieces.size();
+	for (CPiece& p : Pieces) p.Serialize(ar);
+
+	PScores.Serialize(ar);
 
 	return 0;
 }

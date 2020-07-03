@@ -92,9 +92,19 @@ void CPScoreDlg::InitArcs()
 		TCHAR buff[_MAX_ITOSTR_BASE10_COUNT];
 		_itow_s<_MAX_ITOSTR_BASE10_COUNT>(i, buff, 10);
 
-		m_Grid.SetItemText(0, i+1, buff);
 		m_Grid.SetItemText(i + 1, 0, buff);
+	}
+	
+	for (int i = 0; i < a.cols(); i++)
+	{
+		TCHAR buff[_MAX_ITOSTR_BASE10_COUNT];
+		_itow_s<_MAX_ITOSTR_BASE10_COUNT>(i, buff, 10);
 
+		m_Grid.SetItemText(0, i + 1, buff);
+	}
+
+	for (int i = 0; i < a.rows(); i++)
+	{
 		for (int j = 0; j < a.cols(); j++)
 		{
 			double dval = a(i, j);

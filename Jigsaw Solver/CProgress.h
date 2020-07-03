@@ -5,9 +5,11 @@ class CProgressBar
 public:
 	CProgressBar() : m_Percent(0.0), m_Bars(nullptr)
 	{
+		m_Time.QuadPart = 0;
 	}
-	CProgressBar(int n) 
+	CProgressBar(int n) : m_Percent(0.0)
 	{
+		m_Time.QuadPart = 0;
 		m_Bars = new CProgressBar[n];
 	}
 	~CProgressBar() 

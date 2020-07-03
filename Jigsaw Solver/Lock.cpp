@@ -421,14 +421,41 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 	FOR_START(c2, 0, nC)
 		Vector2d temp = CDelta.row(c2).array() - zCM.array();
+#if 0
 		Matrix<double, 1, 2> cdt;
 		cdt[0] = (temp(0) * cosj - temp(1) * sinj) + dxj;
 		cdt[1] = (temp(0) * sinj + temp(1) * cosj) + dyj;
+		VectorXd d;
 		diff[c2] = (CtildeDelta.rowwise() - cdt).rowwise().squaredNorm().eval();
 		test2[c2] = (diff[c2].array() < K2dStarSquared);
 		bTest2Any[c2] = test2[c2].any();
 		test3[c2] = (diff[c2].array() < K3dStarSquared);
 		bTest3Any[c2] = test3[c2].any();
+#else
+//		d = (CtildeDelta.rowwise() - cdt).rowwise().squaredNorm().eval();
+		double cdtrx = (temp(0) * cosj - temp(1) * sinj) + dxj;
+		double cdtry = (temp(0) * sinj + temp(1) * cosj) + dyj;
+
+		size_t sz = CtildeDelta.rows();
+		double* ctdx = (double*) CtildeDelta.data();		// remove const from data()
+		double* ctdy = ctdx + CtildeDelta.rows();
+		//diff[c2].resize(CtildeDelta.rows());
+		test2[c2].resize(CtildeDelta.rows());
+		test3[c2].resize(CtildeDelta.rows());
+		bool bTest2any = false;
+		bool bTest3any = false;
+
+		for (int i = 0; i < sz; i++)
+		{
+			double d = (ctdx[i] - cdtrx)*(ctdx[i] - cdtrx) + (ctdy[i] - cdtry)*(ctdy[i] - cdtry);
+			/*bTest2any |= */(test2[c2][i] = d < K2dStarSquared);
+			/*bTest3any |= */(test3[c2][i] = d < K3dStarSquared);
+		}
+		bTest2Any[c2] = test2[c2].any();
+		bTest3Any[c2] = test3[c2].any();
+		//bTest2Any[c2] = bTest2any;
+		//bTest3Any[c2] = bTest3any;
+#endif
 	FOR_END
 
 		//DebugOutput("-----------------------------------------\n");

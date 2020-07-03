@@ -100,10 +100,10 @@
 #define IDC_COMPARING_PIECES_RUNTIME    1089
 #define IDC_EUCLIDEAN_SIGNATURES_REMAINING4 1090
 #define IDC_COMPARING_PIECES_REMAINING  1090
-#define IDC_IDC_CHECKING_FITS_PCT       1091
 #define IDC_CHECKING_FITS_PCT           1091
 #define IDC_CHECKING_FITS_RUNTIME       1092
 #define IDC_CHECKING_FITS_REMAINING     1093
+#define IDC_EDIT1                       1094
 
 // Next default values for new objects
 // 
@@ -111,7 +111,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        133
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1049
+#define _APS_NEXT_CONTROL_VALUE         1095
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
