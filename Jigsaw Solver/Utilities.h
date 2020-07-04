@@ -2,6 +2,8 @@
 
 using EuclideanSignature = Curve;
 
+class CPiece;
+
 EuclideanSignature Orient_Reverse(EuclideanSignature& sig);
 
 void MyNormm(Eigen::MatrixXd& mat, Eigen::Vector2d& dmin, Eigen::Vector2d& dmax);
@@ -131,5 +133,9 @@ CArchive& operator>>(CArchive& ar, std::vector<T>& v)
 	return ar;
 }
 
+CArchive& operator<<(CArchive& ar, const char* x);
+CArchive& operator>>(CArchive& ar, char*& x);
+
+void CheckArchiveLabel(CArchive& ar, const char* label);
 
 extern CCriticalSection Pauser;

@@ -521,7 +521,7 @@ void PlacePieces()
 
 		Tracker.back().m_RemainingPieces.erase(Tracker.back().m_RemainingPieces.begin() + piece1);
 
-		Placements.emplace_back(piece1, Eigen::Vector4d(), GTransform(), CFit());
+		Placements.emplace_back(piece1, Eigen::Vector4d(0.0, 0.0, 0.0, 0.0), GTransform(), CFit());
 	}
 
 	int c1 = (int)Placements.size();
@@ -582,7 +582,7 @@ void PlacePieces()
 					{
 						int nArc1 = Tracker.back().m_ActiveArcs[nPiece1][c4];
 
-						int sz = Tracker.back().m_ActiveArcs[nPiece2].size();
+						int sz = (int) Tracker.back().m_ActiveArcs[nPiece2].size();
 						for (int c5 = 0; c5 < sz; c5++)
 						{
 							int nArc2 = Tracker.back().m_ActiveArcs[nPiece2][c5];
@@ -885,6 +885,7 @@ void PlacePieces()
 				}
 				else
 				{
+					DebugOutput("Lock: Piece %d, %d points.  SPB has %d points", fitc2.m_Pieces(0, 0), Pieces[fitc2.m_Pieces(0, 0)].m_Contour.rows(), Tracker.back().m_SolvedPuzzleBoundary.rows());
 
 					Indices tPiecePtIcs_3, tPiecePtIcs;
 					GTransform gLock;
@@ -894,6 +895,8 @@ void PlacePieces()
 					// Compute Scores
 
 					double q1 = 1.0 * Tracker.back().m_SP_Bdry_PtIcs_3.size() / Tracker.back().m_SP_Bdry_PtIcs.size();
+					DebugOutput("m_SP_Bdry_PtIcs_3 has %d points,  m_SP_Bdry_PtIcs has %d points.  q1 = %.3f\n", Tracker.back().m_SP_Bdry_PtIcs_3.size(), Tracker.back().m_SP_Bdry_PtIcs.size(), q1);
+
 					double q2 = 0;
 					int tn = (int) tPiecePtIcs_3.size();
 					for (int c3 = 0; c3 < tn; c3++)
@@ -918,6 +921,7 @@ void PlacePieces()
 					if ((pParams->m_dEta1*q1 + pParams->m_dEta2 * q3 > pParams->m_dQ1 || q2 > pParams->m_dQ2Star) && q2 > pParams->m_dQ2 && q3 > pParams->m_dQ3)
 					{
 						// Add new placement to placements variable
+						DebugOutput("Lock success\n");
 
 						Vector4d score;
 						score << q1, q2, q3, pParams->m_dEta1*q1 + pParams->m_dEta2 * q3;
@@ -1045,7 +1049,7 @@ void PlacePieces()
 						MatrixX2i tTrackPlus(tTrack.size(), 2);
 						tTrackPlus.col(0).setConstant(Placements[c1].m_nPiece);
 
-						int szx = tTrack.size();
+						int szx = (int) tTrack.size();
 						for (int i = 0; i < szx; i++)
 						{
 							tTrackPlus(i, 1) = tTrack[i];
@@ -1228,6 +1232,11 @@ void CFit::Serialize(CArchive & ar)
 {
 	if (ar.IsStoring())
 	{
+		ar << "CFit";
+
+		if (m_Pieces(0) < -1 || m_Pieces(0) > 100 || m_Pieces(1) < -1 || m_Pieces(1) > 100)
+			__debugbreak();
+
 		ar << m_Pieces;
 		ar << m_Size;
 		ar << m_Arcs;
@@ -1240,6 +1249,8 @@ void CFit::Serialize(CArchive & ar)
 	}
 	else
 	{
+		CheckArchiveLabel(ar, "CFit");
+
 		ar >> m_Pieces;
 		ar >> m_Size;
 		ar >> m_Arcs;
@@ -1259,6 +1270,7 @@ void CPlacement::Serialize(CArchive & ar)
 {
 	if (ar.IsStoring())
 	{
+		ar << "Placement";
 		ar << m_nPiece;
 		ar << m_Score;
 		m_gLock.Serialize(ar);
@@ -1269,6 +1281,8 @@ void CPlacement::Serialize(CArchive & ar)
 	}
 	else
 	{
+		CheckArchiveLabel(ar, "Placement");
+
 		ar >> m_nPiece;
 		ar >> m_Score;
 		m_gLock.Serialize(ar);
@@ -1287,6 +1301,8 @@ void CPlacement::Serialize(CArchive & ar)
 
 CPlacement::CPlacement(CArchive& ar)
 {
+	CheckArchiveLabel(ar, "Placement");
+
 	ar >> m_nPiece;
 	ar >> m_Score;
 	m_gLock.Serialize(ar);
@@ -1308,10 +1324,13 @@ void GTransform::Serialize(CArchive & ar)
 {
 	if (ar.IsStoring())
 	{
+		ar << "GTransform";
 		ar << theta << dx << dy;
 	}
 	else
 	{
+		CheckArchiveLabel(ar, "GTransform");
+
 		ar >> theta >> dx >> dy;
 	}
 }
@@ -1320,6 +1339,8 @@ void CTracker::Serialize(CArchive & ar)
 {
 	if (ar.IsStoring())
 	{
+		ar << "Tracker";
+
 		ar << m_PlacedPieces;
 		ar << m_RemainingPieces;
 		ar << m_InactiveArcs;
@@ -1334,6 +1355,8 @@ void CTracker::Serialize(CArchive & ar)
 	}
 	else
 	{
+		CheckArchiveLabel(ar, "Tracker");
+
 		ar >> m_PlacedPieces;
 		ar >> m_RemainingPieces;
 		ar >> m_InactiveArcs;

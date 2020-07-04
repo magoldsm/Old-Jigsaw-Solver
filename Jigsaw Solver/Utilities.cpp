@@ -312,42 +312,28 @@ CString CvtElapsedTime(long elapsed)
 	return str;
 }
 
-//CArchive & operator<<(CArchive& ar, Eigen::Vector4d & v)
-//{
-//	ar << v[0] << v[1] << v[2] << v[3];
-//	return ar;
-//}
-//
-//CArchive & operator>>(CArchive& ar, Eigen::Vector4d & v)
-//{
-//	ar >> v[0] >> v[1] >> v[2] >> v[3];
-//	return ar;
-//}
-//
-//CArchive & operator<<(CArchive & ar, Eigen::Vector2i & v)
-//{
-//	ar << v[0] << v[1];
-//	return ar;
-//}
-//
-//CArchive & operator>>(CArchive & ar, Eigen::Vector2i & v)
-//{
-//	ar >> v[0] >> v[1];
-//	return ar;
-//}
-//
-//CArchive & operator<<(CArchive & ar, Eigen::MatrixX2i & m)
-//{
-//	ar << v[0] << v[1];
-//	return ar;
-//}
-//
-//CArchive & operator>>(CArchive & ar, Eigen::MatrixX2i & m)
-//{
-//	ar >> v[0] >> v[1];
-//	return ar;
-//}
-//
-//template<class T, int r, int c>
-//CArchive& operator>>(CArchive& ar, Matrix<T, r, c> m);
 
+void CheckArchiveLabel(CArchive& ar, const char* label)
+{
+	char* pszLabel;
+	ar >> pszLabel;
+
+	ASSERT(strcmp(pszLabel, label) == 0);
+}
+
+
+CArchive& operator<<(CArchive& ar, const char* x)
+{
+	ar << strlen(x);
+	ar.Write(x, (UINT)(strlen(x) + 1));
+	return ar;
+}
+
+CArchive& operator>>(CArchive& ar, char*& x)
+{
+	size_t sz;
+	ar >> sz;
+	x = new char[sz + 1];
+	ar.Read(x, (UINT) sz+1);
+	return ar;
+}

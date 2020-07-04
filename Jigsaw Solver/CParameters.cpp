@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "CParameters.h"
+#include "Utilities.h"
 
 using namespace std;
 
@@ -125,12 +126,21 @@ CParameters::CParameters()
 
 	m_nJStar = GetDwordParam("nParams", N_PARAMS);
 
-	for (int i = 0; i < m_nJStar; i++)
+	int i;
+	for (i = 0; i < m_nJStar; i++)
 	{
 		m_P0[i] = GetDwordParam((string("p0_") + to_string(i)).data(), defaultP[i]) / 1000.0;
 		m_M0[i] = GetDwordParam((string("m0_") + to_string(i)).data(), defaultM[i]) / 1000.0;
 		m_MU0[i] = GetDwordParam((string("mu0_") + to_string(i)).data(), defaultMu[i]) / 1000.0;
 		m_K3[i] = GetDwordParam((string("K3_") + to_string(i)).data(), defaultK3[i]) / 1000.0;
+	}
+
+	for (; i < sizeof(m_P0)/sizeof(m_P0[0]); i++)
+	{
+		m_P0[i] = 0.0;
+		m_M0[i] = 0.0;
+		m_MU0[i] = 0.0;
+		m_K3[i] = 0.0;
 	}
 
 	m_bPlotBVD = GetDwordParam("PlotBVD", 0);
@@ -192,6 +202,8 @@ void CParameters::Serialize(CArchive & ar)
 {
 	if (ar.IsStoring())
 	{
+		ar << "Parameters";
+
 		ar << m_nSGOrder;
 		ar << m_nSGWindow;
 		ar << m_nLambda0;
@@ -223,6 +235,8 @@ void CParameters::Serialize(CArchive & ar)
 	}
 	else
 	{
+		CheckArchiveLabel(ar, "Parameters");
+
 		ar >> m_nSGOrder;
 		ar >> m_nSGWindow;
 		ar >> m_nLambda0;

@@ -37,7 +37,7 @@ public:
 class CProgress
 {
 public:
-	CProgress() : m_Bars(nullptr)
+	CProgress() : m_Bars(nullptr), m_hWndGUI(NULL)
 	{
 	}
 	CProgress(int n)

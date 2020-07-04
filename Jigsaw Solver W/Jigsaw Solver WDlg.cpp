@@ -566,12 +566,16 @@ void CPScore::Serialize(CArchive & ar)
 {
 	if (ar.IsStoring())
 	{
+		ar << "PScores";
+
 		ar << m_Size;
 		for (int i = 0; i < m_Size*m_Size; i++)
 			ar << m_ArcScores[i];
 	}
 	else
 	{
+		CheckArchiveLabel(ar, "PScores");
+
 		ar >> m_Size;
 		if (m_ArcScores) delete[] m_ArcScores;
 		SetSize(m_Size);

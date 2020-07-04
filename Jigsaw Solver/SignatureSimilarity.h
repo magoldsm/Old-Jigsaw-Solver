@@ -46,7 +46,7 @@ struct GTransform
 class CFit
 {
 public:
-	CFit() : m_Size(0), m_Slot(0), m_Score(-1) {}
+	CFit() : m_Size(0), m_Slot(0), m_Score(-1), m_Pieces(-1, -1) {}
 
 	void MeanOfAngles();								// Go through m_ArcTrans, eliminate outliers and compute m_gFit.theta
 
@@ -71,7 +71,9 @@ public:
 		, m_Score(std::move(Score))
 		, m_gLock(std::move(gLock))
 		, m_Fit(std::move(Fit))
-	{}
+	{
+		int x = 0;
+	}
 	CPlacement(CArchive& ar);
 	int								m_nPiece;
 	Eigen::Vector4d					m_Score;

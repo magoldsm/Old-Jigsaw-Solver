@@ -125,6 +125,8 @@ void CPiece::Serialize(CArchive & ar)
 {
 	if (ar.IsStoring())
 	{
+		ar << "Piece";
+
 		ar << m_Contour;
 		ar << m_Signature;
 		ar << m_Weight;
@@ -134,6 +136,8 @@ void CPiece::Serialize(CArchive & ar)
 	}
 	else
 	{
+		CheckArchiveLabel(ar, "Piece");
+
 		ar >> m_Contour;
 		ar >> m_Signature;
 		ar >> m_Weight;
