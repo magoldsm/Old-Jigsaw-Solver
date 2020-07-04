@@ -198,7 +198,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		// totsRow			is the number of trues in each row of bNearby.  It is the number
 		//					of points in CDelta that interact with the CtildeDelta of that row.
 
-		Matrix<Index, 1, -1> totsCol = bNearby.colwise().count();
+	Matrix<Index, 1, -1> totsCol = bNearby.colwise().count();
 	int nEDeltas = (int)(totsCol.array() > 0).count();
 
 	if (nEDeltas == 0)
@@ -210,6 +210,8 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 #ifdef _DEBUG
 	Matrix<Index, 1, -1> totsRow = bNearby.rowwise().count();
 	int nEtildeDeltas = (int)(totsRow.array() > 0).count();
+
+	DebugOutput("nEDeltas=%d  nEtildeDeltas=%d\n", nEDeltas, nEtildeDeltas);
 
 	Curve debugEtildeDeltaK1;
 	debugEtildeDeltaK1.resize(nEtildeDeltas, 2);
@@ -327,6 +329,8 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 		double dMedj = Aj.rows() & 1 ? Aj[Aj.rows() / 2] : (Aj[Aj.rows() / 2 - 1] + Aj[Aj.rows() / 2]) / 2;
 
+		DebugOutput("dAvj=%f  dMedj=%f\n", dAvj, dMedj);
+
 		// Terminate the algorithm if fit is poor and getting worse.
 
 		if (dAvj > dj && dMedj >= K3 * dStar)
@@ -396,11 +400,16 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	//D2Sel.setConstant(false);
 	//D3Sel.setConstant(false);
 
-	vector<VectorXb> test2, test3;
-	vector<VectorXd> diff;
-	test2.resize(nC);
-	test3.resize(nC);
-	diff.resize(nC);
+	VectorXb* test2 = new VectorXb[nC];;
+	VectorXb* test3 = new VectorXb[nC];
+
+	Vector2d* temp = new Vector2d[nC];
+
+	//vector<VectorXb> test2, test3;
+	//vector<VectorXd> diff;
+	//test2.resize(nC);
+	//test3.resize(nC);
+	//diff.resize(nC);
 
 	D_Delta_2_Ics.resize(0);
 	Dtilde_Delta_2_Ics.resize(0);
@@ -419,33 +428,20 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	double K2dStarSquared = K2dStar * K2dStar;
 	double K3dStarSquared = K3dStar * K3dStar;
 
+#if 0
 	FOR_START(c2, 0, nC)
 		Vector2d temp = CDelta.row(c2).array() - zCM.array();
-#if 0
-		Matrix<double, 1, 2> cdt;
-		cdt[0] = (temp(0) * cosj - temp(1) * sinj) + dxj;
-		cdt[1] = (temp(0) * sinj + temp(1) * cosj) + dyj;
-		VectorXd d;
-		diff[c2] = (CtildeDelta.rowwise() - cdt).rowwise().squaredNorm().eval();
-		test2[c2] = (diff[c2].array() < K2dStarSquared);
-		bTest2Any[c2] = test2[c2].any();
-		test3[c2] = (diff[c2].array() < K3dStarSquared);
-		bTest3Any[c2] = test3[c2].any();
-#else
-//		d = (CtildeDelta.rowwise() - cdt).rowwise().squaredNorm().eval();
 		double cdtrx = (temp(0) * cosj - temp(1) * sinj) + dxj;
 		double cdtry = (temp(0) * sinj + temp(1) * cosj) + dyj;
 
-		size_t sz = CtildeDelta.rows();
 		double* ctdx = (double*) CtildeDelta.data();		// remove const from data()
-		double* ctdy = ctdx + CtildeDelta.rows();
-		//diff[c2].resize(CtildeDelta.rows());
-		test2[c2].resize(CtildeDelta.rows());
-		test3[c2].resize(CtildeDelta.rows());
+		double* ctdy = ctdx + nCtilde;
+		test2[c2].resize(nCtilde);
+		test3[c2].resize(nCtilde);
 		bool bTest2any = false;
 		bool bTest3any = false;
 
-		for (int i = 0; i < sz; i++)
+		for (int i = 0; i < nCtilde; i++)
 		{
 			double d = (ctdx[i] - cdtrx)*(ctdx[i] - cdtrx) + (ctdy[i] - cdtry)*(ctdy[i] - cdtry);
 			/*bTest2any |= */(test2[c2][i] = d < K2dStarSquared);
@@ -453,10 +449,57 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		}
 		bTest2Any[c2] = test2[c2].any();
 		bTest3Any[c2] = test3[c2].any();
-		//bTest2Any[c2] = bTest2any;
-		//bTest3Any[c2] = bTest3any;
-#endif
 	FOR_END
+#else
+	for (int c2 = 0; c2 < nC; c2++)
+	{
+		test2[c2].resize(nCtilde);
+		test3[c2].resize(nCtilde);
+	}
+
+	double A[1000], B[1000], C[1000];
+	double* pCDeltaX = (double*) &CDelta(0, 0);
+	double* pCDeltaY = (double*) &CDelta(0, 1);
+
+
+#pragma loop( hint_parallel( 0 ) )
+	for (int c2 = 0; c2 < nC; c2++)
+	{
+		A[c2] = B[c2] + C[c2];
+		temp[c2][0] = pCDeltaX[c2] - zCM[0];
+		temp[c2][1] = pCDeltaY[c2] - zCM[1];
+		//temp[c2] = CDelta.row(c2).array() - zCM.array();
+	}
+
+//#pragma loop( hint_parallel( 0 ) )
+	for (int c2 = 0; c2 < nC; c2++)
+	{
+		Vector2d temp = CDelta.row(c2).array() - zCM.array();
+		double cdtrx = (temp(0) * cosj - temp(1) * sinj) + dxj;
+		double cdtry = (temp(0) * sinj + temp(1) * cosj) + dyj;
+
+		double* ctdx = (double*)CtildeDelta.data();		// remove const from data()
+		double* ctdy = ctdx + nCtilde;
+		//test2[c2].resize(nCtilde);
+		//test3[c2].resize(nCtilde);
+		VectorXb& test2c2 = test2[c2];
+		VectorXb& test3c2 = test3[c2];
+
+#pragma loop( ivdep )
+		for (int i = 0; i < nCtilde; i++)
+		{
+			double d = (ctdx[i] - cdtrx)*(ctdx[i] - cdtrx) + (ctdy[i] - cdtry)*(ctdy[i] - cdtry);
+			test2c2[i] = d < K2dStarSquared;
+			test3c2[i] = d < K3dStarSquared;
+		}
+		bTest2Any[c2] = test2[c2].any();
+		bTest3Any[c2] = test3[c2].any();
+	}
+#endif
+
+	delete[] test2;
+	delete[] test3;
+	delete[] temp;
 
 		//DebugOutput("-----------------------------------------\n");
 
@@ -485,6 +528,10 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		}
 	}
 
+	if (nC == 492)
+		DebugOutput("Pre-Unique:  Dtilde_Delta_2_Ics has %d points, Dtilde_Delta_3_Ics has %d points\n", Dtilde_Delta_2_Ics.size(), Dtilde_Delta_3_Ics.size());
+
+
 	auto icmp = [](const void* p1, const void* p2)
 	{
 		return *(int*)p1 - *(int*)p2;
@@ -501,6 +548,9 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 	it = unique(Dtilde_Delta_3_Ics.begin(), Dtilde_Delta_3_Ics.end(), ucmp);
 	Dtilde_Delta_3_Ics.resize(std::distance(Dtilde_Delta_3_Ics.begin(), it));
+
+	if (nC == 492)
+		DebugOutput("Post-Unique: Dtilde_Delta_2_Ics has %d points, Dtilde_Delta_3_Ics has %d points\n", Dtilde_Delta_2_Ics.size(), Dtilde_Delta_3_Ics.size());
 
 	if (bPlot)
 	{

@@ -885,7 +885,25 @@ void PlacePieces()
 				}
 				else
 				{
-					DebugOutput("Lock: Piece %d, %d points.  SPB has %d points", fitc2.m_Pieces(0, 0), Pieces[fitc2.m_Pieces(0, 0)].m_Contour.rows(), Tracker.back().m_SolvedPuzzleBoundary.rows());
+					if (fitc2.m_Pieces(0, 0) == 0 && fabs(fitc2.m_gFit.theta + 2.2426) < 0.001)
+					{
+						for (;;)
+						{
+							DebugOutput("Lock c2=%d: Piece %d, %d points.  SPB has %d points  theta=%.4f\n", c2, fitc2.m_Pieces(0, 0), Pieces[fitc2.m_Pieces(0, 0)].m_Contour.rows(), Tracker.back().m_SolvedPuzzleBoundary.rows(), fitc2.m_gFit.theta);
+
+							Indices tPiecePtIcs_3, tPiecePtIcs;
+							GTransform gLock;
+							Lock(fitc2.m_gFit, Pieces[fitc2.m_Pieces(0, 0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary,
+								gLock, pParams->m_K3[j], tPiecePtIcs_3, Tracker.back().m_SP_Bdry_PtIcs_3, tPiecePtIcs, Tracker.back().m_SP_Bdry_PtIcs, pParams->m_szPlotLevel[0] > '2', plotHandle);
+
+							// Compute Scores
+
+							double q1 = 1.0 * Tracker.back().m_SP_Bdry_PtIcs_3.size() / Tracker.back().m_SP_Bdry_PtIcs.size();
+							DebugOutput("m_SP_Bdry_PtIcs_3 has %d points,  m_SP_Bdry_PtIcs has %d points.  q1 = %.3f\n", Tracker.back().m_SP_Bdry_PtIcs_3.size(), Tracker.back().m_SP_Bdry_PtIcs.size(), q1);
+						}
+
+					}
+					DebugOutput("Lock c2=%d: Piece %d, %d points.  SPB has %d points  theta=%.4f\n", c2, fitc2.m_Pieces(0, 0), Pieces[fitc2.m_Pieces(0, 0)].m_Contour.rows(), Tracker.back().m_SolvedPuzzleBoundary.rows(), fitc2.m_gFit.theta);
 
 					Indices tPiecePtIcs_3, tPiecePtIcs;
 					GTransform gLock;

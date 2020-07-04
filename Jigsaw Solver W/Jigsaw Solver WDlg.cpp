@@ -45,7 +45,7 @@ LRESULT CProgress::Plot(const Curve& curve, COLORREF color, int width)
 
 	if (curve.rows())
 	{
-		DebugOutput("Plot: Curve(%d), color:%x, width:%d\n", curve.rows(), color, width);
+	//	DebugOutput("Plot: Curve(%d), color:%x, width:%d\n", curve.rows(), color, width);
 
 		lr = ::SendMessage(m_hWndGUI, WM_PLOT, color | ((width & 0xff) << 24), (LPARAM)&curve);
 	}

@@ -39,7 +39,7 @@ void DebugOutput(const char* szFormat, ...);
 
 
 
-#define USE_TBB
+//#define USE_TBB
 
 #ifdef USE_TBB
 #define FOR_START(vbl, min, max)	tbb::parallel_for(min, max, [&](int vbl) {
