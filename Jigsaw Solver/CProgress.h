@@ -64,9 +64,10 @@ public:
 	void UpdateReport();								// Update bars
 
 	LRESULT Plot(const Curve& curve, COLORREF color = 0, int width = 1);
-	void Erase();
+	void Erase(bool bHold = false);
 	void Delete(LRESULT item);
 	void Text(std::string text, int x, int y);
+	void Unhold();
 
 	void SavePuzzle();
 
@@ -88,6 +89,7 @@ private:
 #define	WM_DELETE			(WM_USER+4)
 #define	WM_TEXT				(WM_USER+5)
 #define	WM_SAVE				(WM_USER+6)
+#define	WM_UNHOLD			(WM_USER+7)
 
 extern CProgress Progress;
 extern LARGE_INTEGER liStart, liFrequency, liSG, liEuclid, liBVD, liTotal;

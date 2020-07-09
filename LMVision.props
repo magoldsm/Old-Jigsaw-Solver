@@ -6,14 +6,17 @@
     <PCLDebug Condition="'$(Configuration)'=='Debug'">_debug</PCLDebug>
     <PCLDebug Condition="'$(Configuration)'!='Debug'">_release</PCLDebug>
     <VTKDebug Condition="'$(Configuration)'=='Debug'">-gd</VTKDebug>
-    <VTKDebug Condition="'$(Configuration)'!='Debug'"></VTKDebug>
+    <VTKDebug Condition="'$(Configuration)'!='Debug'">
+    </VTKDebug>
     <BoostDebug Condition="'$(Configuration)'=='Debug'">-gd</BoostDebug>
-    <BoostDebug Condition="'$(Configuration)'!='Debug'"></BoostDebug>
+    <BoostDebug Condition="'$(Configuration)'!='Debug'">
+    </BoostDebug>
     <PCL_VER>pcl-1.9</PCL_VER>
     <VTK_VER>vtk-8.1</VTK_VER>
     <BOOST_VER>boost-1_68</BOOST_VER>
     <OpenCVDebug Condition="'$(Configuration)'=='Debug'">d</OpenCVDebug>
-    <OpenCVDebug Condition="'$(Configuration)'!='Debug'"></OpenCVDebug>
+    <OpenCVDebug Condition="'$(Configuration)'!='Debug'">
+    </OpenCVDebug>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup>
@@ -273,7 +276,7 @@
         opencv_xphoto411$(OPENCVDebug).lib;
       %(AdditionalDependencies)
       </AdditionalDependencies>
-      <ShowProgress>LinkVerbose</ShowProgress>
+      <ShowProgress>NotSet</ShowProgress>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /y "$(librealsenseSDK)\bin\$(PlatformShortName)\realsense2.dll" "$(OutDir)"</Command>

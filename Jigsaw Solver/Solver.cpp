@@ -13,7 +13,6 @@ using namespace Eigen;
 using namespace cv;
 
 extern std::vector<CPiece> Pieces;
-extern Eigen::VectorXd Weights;
 extern Eigen::VectorXd smoothVec, d1Vec, d2Vec;
 extern double AverageLength;
 extern long AverageSize;
@@ -71,12 +70,16 @@ void Solver(bool bResume)
 
 		PScores.Serialize(ar);
 
+		ar >> sz;
+		Fits.resize(sz);
+		for (int i = 0; i < sz; i++)
+			Fits[i].Serialize(ar);
+
 	}
 	else
 	{
 		AverageSize = 0;
 		AverageLength = 0.0;
-		Weights.resize(nPieces);
 		atomic<int> nDone(0);
 		Progress.RestartReport(PROGRESS_EUCLID, true);
 
@@ -87,19 +90,19 @@ void Solver(bool bResume)
 		Progress.UpdateReport();
 		FOR_END
 
-			for (int i = 0; i < nPieces; i++)
-			{
-				Curve& c = Pieces[i].m_Contour;
-				Curve cm1;
-				cm1.resizeLike(c);
+		for (int i = 0; i < nPieces; i++)
+		{
+			Curve& c = Pieces[i].m_Contour;
+			Curve cm1;
+			cm1.resizeLike(c);
 
-				circShift(c, cm1, -1);
+			circShift(c, cm1, -1);
 
-				Weights[i] = Pieces[i].m_Signature.col(0).array().abs().sum();
+			Pieces[i].m_Weight = Pieces[i].m_Signature.col(0).array().abs().sum();
 
-				AverageSize += (long)Pieces[i].m_Contour.rows();
-				AverageLength += ((c.col(0) - cm1.col(0)).array().square() + (c.col(1) - cm1.col(1)).array().square()).sqrt().sum();
-			}
+			AverageSize += (long)Pieces[i].m_Contour.rows();
+			AverageLength += ((c.col(0) - cm1.col(0)).array().square() + (c.col(1) - cm1.col(1)).array().square()).sqrt().sum();
+		}
 
 		QueryPerformanceCounter(&liEuclid);
 		cout << "Eucliean Sigs " << (liEuclid.QuadPart - liSG.QuadPart) / (1.0*liFrequency.QuadPart) << " seconds" << endl;

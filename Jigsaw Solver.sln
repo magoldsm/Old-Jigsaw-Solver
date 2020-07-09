@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.757
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30225.117
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Jigsaw Solver", "Jigsaw Solver\Jigsaw Solver.vcxproj", "{33B07770-BD46-4E37-BCE9-35D5F332210D}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Jigsaw Solver W", "Jigsaw Solver W\Jigsaw Solver W.vcxproj", "{D8D7DCC5-D72C-4916-A655-1EA20E8FB89A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Compare Snapshots", "Compare Snapshots\Compare Snapshots.vcxproj", "{FD783555-31B8-4B85-9207-4274A5D3CFFE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,6 +33,14 @@ Global
 		{D8D7DCC5-D72C-4916-A655-1EA20E8FB89A}.Release|x64.Build.0 = Release|x64
 		{D8D7DCC5-D72C-4916-A655-1EA20E8FB89A}.Release|x86.ActiveCfg = Release|Win32
 		{D8D7DCC5-D72C-4916-A655-1EA20E8FB89A}.Release|x86.Build.0 = Release|Win32
+		{FD783555-31B8-4B85-9207-4274A5D3CFFE}.Debug|x64.ActiveCfg = Debug|x64
+		{FD783555-31B8-4B85-9207-4274A5D3CFFE}.Debug|x64.Build.0 = Debug|x64
+		{FD783555-31B8-4B85-9207-4274A5D3CFFE}.Debug|x86.ActiveCfg = Debug|Win32
+		{FD783555-31B8-4B85-9207-4274A5D3CFFE}.Debug|x86.Build.0 = Debug|Win32
+		{FD783555-31B8-4B85-9207-4274A5D3CFFE}.Release|x64.ActiveCfg = Release|x64
+		{FD783555-31B8-4B85-9207-4274A5D3CFFE}.Release|x64.Build.0 = Release|x64
+		{FD783555-31B8-4B85-9207-4274A5D3CFFE}.Release|x86.ActiveCfg = Release|Win32
+		{FD783555-31B8-4B85-9207-4274A5D3CFFE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

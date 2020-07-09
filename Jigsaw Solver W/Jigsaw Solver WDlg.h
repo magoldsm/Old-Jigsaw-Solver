@@ -75,10 +75,12 @@ public:
 	afx_msg LRESULT OnDelete(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnText(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnSave(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUnhold(WPARAM wParam, LPARAM lParam);
 
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
 	void UpdateParameters();
 
 	void UpdateBar(int idx, CProgressBar & bar);
 	afx_msg void OnClose();
+//	afx_msg void OnBnClickedCheck1();
 };

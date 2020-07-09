@@ -136,6 +136,7 @@ CArchive& operator>>(CArchive& ar, std::vector<T>& v)
 CArchive& operator<<(CArchive& ar, const char* x);
 CArchive& operator>>(CArchive& ar, char*& x);
 
+bool ApproxEqual(double d1, double d2);
 void CheckArchiveLabel(CArchive& ar, const char* label);
 
 extern CCriticalSection Pauser;

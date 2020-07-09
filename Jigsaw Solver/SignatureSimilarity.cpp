@@ -14,26 +14,9 @@ using namespace cv;
 vector<CPlacement> Placements;
 vector<CTracker> Tracker;
 CPScore PScores;
+vector<CFit> Fits;
 
 
-
-CPScore::CPScore(size_t sz) : m_Size(sz)
-{
-	m_ArcScores = new MatrixXd[sz*sz];
-}
-
-
-CPScore::~CPScore()
-{
-	if (m_ArcScores) delete[] m_ArcScores;
-}
-
-void CPScore::SetSize(size_t sz)
-{
-	if (m_ArcScores) delete[] m_ArcScores;
-	m_Size = sz;
-	m_ArcScores = new MatrixXd[sz*sz];
-}
 
 inline double
 QuickPow(double x, int i)
@@ -476,15 +459,19 @@ void PlacePieces()
 
 	if (Placements.size() == 0)
 	{
+		Eigen::VectorXd weights(nPieces);
+
 		Tracker.resize(1);
 
 		for (int i = 0; i < nPieces; i++)
 		{
 			Pieces[i].m_nActive = 0;
+			weights[i] = Pieces[i].m_Weight;
 		}
 
 		int piece1;							// Start with the "heaviest" piece.
-		double dummy = Weights.maxCoeff(&piece1);
+
+		double dummy = weights.maxCoeff(&piece1);
 		piece1 = 1;										// ***BUGBUG*** We compute slightly different weights than Hoff.
 		Pieces[piece1].m_nActive = 1;
 
@@ -542,18 +529,20 @@ void PlacePieces()
 
 	if (pParams->m_szPlotLevel[0] > '1')
 	{
-		Progress.Erase();
+		Progress.Erase(true);
 		fragh = Progress.Plot(Tracker.back().m_SolvedPuzzleBoundary, RGB(0, 0, 255), 3);
 
 		for (int i = 0; i < Placements.size(); i++)
 			PlotPlacement(Placements[i]);
+
+		Progress.Unhold();
 	}
 
 	// ***NOTE*** H&O plots all placements here.  I assume this is used when resuming a saved puzzle.
 
 	while (c1 < nPieces)
 	{
-		vector<CFit> Fits;
+		Fits.resize(0);
 
 		Progress.RestartReport(PROGRESS_COMPARING, true);
 
@@ -604,8 +593,7 @@ void PlacePieces()
 				//% Find sequences of consecutive high P-Scores
 
 				//%--------------------------------------------------------------------------
-				//if (nPiece1 == 26 && nPiece2 == 23)
-				//	PScores.Display(pParams->m_P0[j]);
+
 				MatrixXi included = MatrixXi::Zero(PScores(nPiece1, nPiece2).rows(), PScores(nPiece1, nPiece2).cols());
 				vector<Vector2i> tArcs;
 
@@ -613,13 +601,6 @@ void PlacePieces()
 				vector<int>& aarcs2 = Tracker.back().m_ActiveArcs[nPiece2];
 				size_t sz1 = aarcs1.size();
 				size_t sz2 = aarcs2.size();
-				//size_t nArcs1 = Pieces[nPiece1].m_Arcs.size();
-				//size_t nArcs2 = Pieces[nPiece2].m_Arcs.size();
-
-				//if ((nPiece1 == 11 && nPiece2 == 13) || (nPiece1 == 13 && nPiece2 == 11))
-				//{
-				//	::MessageBoxA(NULL, "here", "and there", MB_OK);
-				//}
 
 				for (int c4 = 0; c4 < sz1; c4++)
 				{
@@ -725,6 +706,9 @@ void PlacePieces()
 			}
 		}
 
+		if (pParams->m_bDumpFitBeforeQSort)
+			CFit::Dump("Before QSort");
+
 		qsort(Fits.data(), Fits.size(), sizeof(CFit), [](const void* p1, const void* p2)->int
 		{
 			CFit* pFit1 = (CFit*)p1;
@@ -732,14 +716,8 @@ void PlacePieces()
 			return (pFit2->m_Size - pFit1->m_Size);				// Descending sort
 		});
 
-		//for (int i = 0; i < Fits.size(); i++)
-		//{
-		//	CFit& fit = Fits[i];
-		//	if (fit.m_Pieces[0] == 11 && fit.m_Pieces[1] == 13)
-		//	{
-		//		::MessageBoxA(NULL, "look here", "and there", MB_OK);
-		//	}
-		//}
+		if (pParams->m_bDumpFitBeforeQSort)
+			CFit::Dump("After QSort");
 
 		int c2 = 0;
 		bool bProgress = false;
@@ -885,21 +863,28 @@ void PlacePieces()
 				}
 				else
 				{
-					if (fitc2.m_Pieces(0, 0) == 0 && fabs(fitc2.m_gFit.theta + 2.2426) < 0.001)
+					if (0)//(ApproxEqual(-2.2427, fitc2.m_gFit.theta) || ApproxEqual(-2.2763, fitc2.m_gFit.theta))
+//					if (c2 == 1)
 					{
 						for (;;)
 						{
 							DebugOutput("Lock c2=%d: Piece %d, %d points.  SPB has %d points  theta=%.4f\n", c2, fitc2.m_Pieces(0, 0), Pieces[fitc2.m_Pieces(0, 0)].m_Contour.rows(), Tracker.back().m_SolvedPuzzleBoundary.rows(), fitc2.m_gFit.theta);
 
+							GTransform g(-2.4726, 982.5977, -240.5272);
+							g = fitc2.m_gFit;
+
 							Indices tPiecePtIcs_3, tPiecePtIcs;
 							GTransform gLock;
-							Lock(fitc2.m_gFit, Pieces[fitc2.m_Pieces(0, 0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary,
+							Lock(g, Pieces[fitc2.m_Pieces(0, 0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary,
 								gLock, pParams->m_K3[j], tPiecePtIcs_3, Tracker.back().m_SP_Bdry_PtIcs_3, tPiecePtIcs, Tracker.back().m_SP_Bdry_PtIcs, pParams->m_szPlotLevel[0] > '2', plotHandle);
 
 							// Compute Scores
 
 							double q1 = 1.0 * Tracker.back().m_SP_Bdry_PtIcs_3.size() / Tracker.back().m_SP_Bdry_PtIcs.size();
 							DebugOutput("m_SP_Bdry_PtIcs_3 has %d points,  m_SP_Bdry_PtIcs has %d points.  q1 = %.3f\n", Tracker.back().m_SP_Bdry_PtIcs_3.size(), Tracker.back().m_SP_Bdry_PtIcs.size(), q1);
+							DebugOutput("g = %.4f, %.4f, %.4f\n", gLock.theta, gLock.dx, gLock.dy);
+							if (Tracker.back().m_SP_Bdry_PtIcs_3.size() != 159 || Tracker.back().m_SP_Bdry_PtIcs.size() != 165)
+								__debugbreak();
 						}
 
 					}
@@ -907,10 +892,23 @@ void PlacePieces()
 
 					Indices tPiecePtIcs_3, tPiecePtIcs;
 					GTransform gLock;
-					Lock(fitc2.m_gFit, Pieces[fitc2.m_Pieces(0,0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary, 
+					if (ApproxEqual(-1.90221, fitc2.m_gFit.theta) || ApproxEqual(-1.935986, fitc2.m_gFit.theta))
+					{
+						::PostMessage(NULL, 0, 0, 0);
+					}
+					if (fitc2.m_Pieces(0, 0) == 3)
+					{
+						::PostMessage(NULL, 0, 0, 0);
+						AlwaysOutput("c2=%d  Piece %d, theta=%f\n", c2, fitc2.m_Pieces(0, 0), fitc2.m_gFit.theta);
+					}
+						Lock(fitc2.m_gFit, Pieces[fitc2.m_Pieces(0,0)].m_Contour, Tracker.back().m_SolvedPuzzleBoundary, 
 						gLock, pParams->m_K3[j], tPiecePtIcs_3, Tracker.back().m_SP_Bdry_PtIcs_3, tPiecePtIcs, Tracker.back().m_SP_Bdry_PtIcs, pParams->m_szPlotLevel[0] > '2', plotHandle);
 
-					// Compute Scores
+						if (fitc2.m_Pieces(0, 0) == 3)
+						{
+							::PostMessage(NULL, 0, 0, 0);
+						}
+						// Compute Scores
 
 					double q1 = 1.0 * Tracker.back().m_SP_Bdry_PtIcs_3.size() / Tracker.back().m_SP_Bdry_PtIcs.size();
 					DebugOutput("m_SP_Bdry_PtIcs_3 has %d points,  m_SP_Bdry_PtIcs has %d points.  q1 = %.3f\n", Tracker.back().m_SP_Bdry_PtIcs_3.size(), Tracker.back().m_SP_Bdry_PtIcs.size(), q1);
@@ -1084,7 +1082,7 @@ void PlacePieces()
 						Progress.UpdateReport();
 
 						Progress.Delete(fragh);
-						/******/Progress.Erase();
+						/******/Progress.Erase(true);
 						Progress.Plot(Tracker.back().m_SolvedPuzzleBoundary, RGB(0, 0, 255), 3);
 
 						for (int i = 0; i <= c1; i++)
@@ -1123,6 +1121,8 @@ void PlacePieces()
 								farch2 = Progress.Plot(farcpts2, RGB(255, 0, 0), -3);
 						}
 
+						Progress.Unhold();
+
 						bProgress = true;
 
 						if (pParams->m_bSave)
@@ -1138,6 +1138,8 @@ void PlacePieces()
 			c2++;
 		}
 		
+		// End of Check Fits loop
+
 		Progress.RestartReport(PROGRESS_CHECKING, false);
 		Progress(PROGRESS_COMPARING).m_Percent = 0;
 		Progress.UpdateReport();
@@ -1197,194 +1199,52 @@ void CFit::MeanOfAngles()
 {
 	CalcAverageTheta(*this);
 
-	double thetaAvg = m_gFit.theta;
-	if (thetaAvg < 0)
-		thetaAvg += 2 * PI;
+	//double thetaAvg = m_gFit.theta;
+	//if (thetaAvg < 0)
+	//	thetaAvg += 2 * PI;
 
-	// Now look at the 1st and last arcs and check for outliers
+	//// Now look at the 1st and last arcs and check for outliers
 
-	int nStart = 0;
-	int nEnd = (int)m_ArcTrans.size() - 1;
+	//int nStart = 0;
+	//int nEnd = (int)m_ArcTrans.size() - 1;
 
-	for (int i = 0; i < m_ArcTrans.size(); i++)
-	{
-		double dErr = fabs(m_ArcTrans[i].theta - thetaAvg) / thetaAvg;
-		if (dErr > 0.15)
-		{
-			nStart = i + 1;
-		}
-		else
-			break;
-	}
-
-	for (int i = (int)m_ArcTrans.size() - 1; i >= 0; i--)
-	{
-		double dErr = fabs(m_ArcTrans[i].theta - thetaAvg) / thetaAvg;
-		if (dErr > 0.15)
-		{
-			nEnd = i - 1;
-		}
-		else
-			break;
-	}
-
-	if (nStart < m_Size && nEnd >= 0)
-	{
-		// Now, delete all the arcs we don't want
-
-		m_Arcs = m_Arcs.block(nStart, 0, (nEnd - nStart) + 1, 2).eval();
-
-		if (nStart > 0)
-		{
-			memcpy_s(&m_ArcTrans[0], sizeof(m_ArcTrans[0])*m_ArcTrans.size(), &m_ArcTrans[nStart], sizeof(m_ArcTrans[0])*(m_ArcTrans.size() - nStart));
-		}
-
-		m_Size = (nEnd - nStart) + 1;
-		m_ArcTrans.resize(m_Size);
-	}
-
-	CalcAverageTheta(*this);
-}
-
-void CFit::Serialize(CArchive & ar)
-{
-	if (ar.IsStoring())
-	{
-		ar << "CFit";
-
-		if (m_Pieces(0) < -1 || m_Pieces(0) > 100 || m_Pieces(1) < -1 || m_Pieces(1) > 100)
-			__debugbreak();
-
-		ar << m_Pieces;
-		ar << m_Size;
-		ar << m_Arcs;
-		ar << m_ArcTrans.size();
-		for (GTransform& t : m_ArcTrans) t.Serialize(ar);
-//		ar << m_ArcTrans;
-		m_gFit.Serialize(ar);
-		ar << m_Score;
-		ar << m_Slot;
-	}
-	else
-	{
-		CheckArchiveLabel(ar, "CFit");
-
-		ar >> m_Pieces;
-		ar >> m_Size;
-		ar >> m_Arcs;
-//		ar >> m_ArcTrans;
-		size_t sz;
-		ar >> sz;
-		m_ArcTrans.resize(sz);
-		for (GTransform& t : m_ArcTrans) t.Serialize(ar);
-		m_gFit.Serialize(ar);
-		ar >> m_Score;
-		ar >> m_Slot;
-	}
-}
-
-
-void CPlacement::Serialize(CArchive & ar)
-{
-	if (ar.IsStoring())
-	{
-		ar << "Placement";
-		ar << m_nPiece;
-		ar << m_Score;
-		m_gLock.Serialize(ar);
-		m_Fit.Serialize(ar);
-		ar << m_Neighbors;
-		//ar << m_Neighbors.size();
-		//for (int n : m_Neighbors) ar << n;
-	}
-	else
-	{
-		CheckArchiveLabel(ar, "Placement");
-
-		ar >> m_nPiece;
-		ar >> m_Score;
-		m_gLock.Serialize(ar);
-		m_Fit.Serialize(ar);
-		ar >> m_Neighbors;
-	//	size_t cNeighbors;
-	//	int n;
-	//	ar >> cNeighbors;
-	//	while (cNeighbors--)
-	//	{
-	//		ar >> n;
-	//		m_Neighbors.push_back(n);
-	//	}
-	}
-}
-
-CPlacement::CPlacement(CArchive& ar)
-{
-	CheckArchiveLabel(ar, "Placement");
-
-	ar >> m_nPiece;
-	ar >> m_Score;
-	m_gLock.Serialize(ar);
-	m_Fit.Serialize(ar);
-	ar >> m_Neighbors;
-	//size_t cNeighbors;
-	//int n;
-	//ar >> cNeighbors;
-	//while (cNeighbors--)
+	//for (int i = 0; i < m_ArcTrans.size(); i++)
 	//{
-	//	ar >> n;
-	//	m_Neighbors.push_back(n);
+	//	double dErr = fabs(m_ArcTrans[i].theta - thetaAvg) / thetaAvg;
+	//	if (dErr > 0.15)
+	//	{
+	//		nStart = i + 1;
+	//	}
+	//	else
+	//		break;
 	//}
+
+	//for (int i = (int)m_ArcTrans.size() - 1; i >= 0; i--)
+	//{
+	//	double dErr = fabs(m_ArcTrans[i].theta - thetaAvg) / thetaAvg;
+	//	if (dErr > 0.15)
+	//	{
+	//		nEnd = i - 1;
+	//	}
+	//	else
+	//		break;
+	//}
+
+	//if (nStart < m_Size && nEnd >= 0)
+	//{
+	//	// Now, delete all the arcs we don't want
+
+	//	m_Arcs = m_Arcs.block(nStart, 0, (nEnd - nStart) + 1, 2).eval();
+
+	//	if (nStart > 0)
+	//	{
+	//		memcpy_s(&m_ArcTrans[0], sizeof(m_ArcTrans[0])*m_ArcTrans.size(), &m_ArcTrans[nStart], sizeof(m_ArcTrans[0])*(m_ArcTrans.size() - nStart));
+	//	}
+
+	//	m_Size = (nEnd - nStart) + 1;
+	//	m_ArcTrans.resize(m_Size);
+	//}
+
+	//CalcAverageTheta(*this);
 }
 
-
-
-void GTransform::Serialize(CArchive & ar)
-{
-	if (ar.IsStoring())
-	{
-		ar << "GTransform";
-		ar << theta << dx << dy;
-	}
-	else
-	{
-		CheckArchiveLabel(ar, "GTransform");
-
-		ar >> theta >> dx >> dy;
-	}
-}
-
-void CTracker::Serialize(CArchive & ar)
-{
-	if (ar.IsStoring())
-	{
-		ar << "Tracker";
-
-		ar << m_PlacedPieces;
-		ar << m_RemainingPieces;
-		ar << m_InactiveArcs;
-		ar << m_ActiveArcs;
-		ar << m_InactivePoints;
-		ar << m_ActivePoints;
-		ar << m_Pc2Place;
-		ar << m_SolvedPuzzleBoundary;
-		ar << m_SPB_Pt2PcPt;
-		ar << m_SP_Bdry_PtIcs_3;
-		ar << m_SP_Bdry_PtIcs;
-	}
-	else
-	{
-		CheckArchiveLabel(ar, "Tracker");
-
-		ar >> m_PlacedPieces;
-		ar >> m_RemainingPieces;
-		ar >> m_InactiveArcs;
-		ar >> m_ActiveArcs;
-		ar >> m_InactivePoints;
-		ar >> m_ActivePoints;
-		ar >> m_Pc2Place;
-		ar >> m_SolvedPuzzleBoundary;
-		ar >> m_SPB_Pt2PcPt;
-		ar >> m_SP_Bdry_PtIcs_3;
-		ar >> m_SP_Bdry_PtIcs;
-	}
-}

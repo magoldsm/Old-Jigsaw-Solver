@@ -53,13 +53,15 @@ public:
 	Eigen::Vector2i					m_Pieces;
 	int								m_Size;
 	Eigen::MatrixX2i				m_Arcs;				// Rows given by m_Size
-	//std::vector<Eigen::Vector2i>	m_Arcs;				// Rows given by m_Size
 	std::vector<GTransform>			m_ArcTrans;			// Rows given by m_Size
 	GTransform						m_gFit;
 	double							m_Score;
 	int								m_Slot;
 
 	void Serialize(CArchive& ar);
+	void Dump(int nIdx, std::ofstream& file);
+
+	static void Dump(const char* pszFilename);
 };
 
 
@@ -125,3 +127,4 @@ Curve TransformCurve(const Curve& points, const GTransform& trans);
 extern std::vector<CPlacement> Placements;
 extern std::vector<CTracker> Tracker;
 extern CPScore PScores;
+extern std::vector<CFit> Fits;

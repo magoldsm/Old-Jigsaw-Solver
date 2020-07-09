@@ -337,3 +337,9 @@ CArchive& operator>>(CArchive& ar, char*& x)
 	ar.Read(x, (UINT) sz+1);
 	return ar;
 }
+
+bool ApproxEqual(double d1, double d2)
+{
+	return (fabs(d1 - d2) < fabs(d1) / 1000.0);
+}
+

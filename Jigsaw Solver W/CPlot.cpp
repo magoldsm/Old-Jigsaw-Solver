@@ -8,6 +8,7 @@ IMPLEMENT_DYNAMIC(CPlot, CWnd)
 
 
 CPlot::CPlot()
+	: m_bHold(false)
 {
 	RegisterWindowClass();
 }
@@ -197,7 +198,7 @@ BOOL CPlot::PreCreateWindow(CREATESTRUCT& cs)
 	return CWnd::PreCreateWindow(cs);
 }
 
-void CPlot::Erase()
+void CPlot::Erase(bool bHold)
 {
 //	DebugOutput("CPlot::Erase\n");
 
@@ -205,6 +206,8 @@ void CPlot::Erase()
 	m_Colors.resize(0);
 	m_Widths.resize(0);
 	Repaint();
+
+	m_bHold = bHold;
 }
 
 void* CPlot::Plot(const Curve & curve, COLORREF color, int width)
@@ -258,9 +261,18 @@ void CPlot::Text(std::string text, int x, int y)
 
 void CPlot::Repaint()
 {
+	if (m_bHold)
+		return;
+
 	CRect rect;
 	GetWindowRect(&rect);
 	GetParent()->ScreenToClient(&rect);
 	GetParent()->InvalidateRect(&rect, FALSE);
 
+}
+
+void CPlot::Unhold()
+{
+	m_bHold = false;
+	Repaint();
 }

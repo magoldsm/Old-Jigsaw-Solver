@@ -26,7 +26,6 @@ using namespace Eigen;
 #endif
 
 std::vector<CPiece> Pieces;
-Eigen::VectorXd Weights;
 Eigen::VectorXd smoothVec, d1Vec, d2Vec;
 double Dx, Dy, Dkappa, Dkappas;
 double AverageLength;
@@ -63,9 +62,9 @@ void CProgress::Text(std::string text, int x, int y)
 }
 
 
-void CProgress::Erase()
+void CProgress::Erase(bool bHold)
 {
-	::SendMessage(m_hWndGUI, WM_ERASE, 0, 0L);
+	::SendMessage(m_hWndGUI, WM_ERASE, bHold, 0L);
 }
 
 
@@ -81,6 +80,10 @@ void CProgress::SavePuzzle()
 	::SendMessage(m_hWndGUI, WM_SAVE, 0, 0L);
 }
 
+void CProgress::Unhold()
+{
+	::SendMessage(m_hWndGUI, WM_UNHOLD, 0, 0L);
+}
 
 // CAboutDlg dialog used for App About
 
@@ -220,6 +223,7 @@ void CJigsawSolverWDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECKING_FITS_PCT, m_pctChecking);
 	DDX_Control(pDX, IDC_CHECKING_FITS_RUNTIME, m_runtimeChecking);
 	DDX_Control(pDX, IDC_CHECKING_FITS_REMAINING, m_remainingChecking);
+	DDX_Check(pDX, IDC_DUMP_FIT_BEFORE_QSORT, m_bDumpFitBeforeQSort);
 }
 
 BEGIN_MESSAGE_MAP(CJigsawSolverWDlg, CDialogEx)
@@ -234,6 +238,7 @@ BEGIN_MESSAGE_MAP(CJigsawSolverWDlg, CDialogEx)
 	ON_MESSAGE(WM_DELETE, &CJigsawSolverWDlg::OnDelete)
 	ON_MESSAGE(WM_TEXT, &CJigsawSolverWDlg::OnText)
 	ON_MESSAGE(WM_SAVE, &CJigsawSolverWDlg::OnSave)
+	ON_MESSAGE(WM_UNHOLD, &CJigsawSolverWDlg::OnUnhold)
 	ON_BN_CLICKED(IDC_PAUSE, &CJigsawSolverWDlg::OnBnClickedPause)
 	ON_BN_CLICKED(IDC_RESUME, &CJigsawSolverWDlg::OnBnClickedResume)
 	ON_WM_CLOSE()
@@ -500,7 +505,7 @@ void CJigsawSolverWDlg::UpdateBar(int idx, CProgressBar & bar)
 
 LRESULT CJigsawSolverWDlg::OnErase(WPARAM wParam, LPARAM lParam)
 {
-	m_Plot.Erase();
+	m_Plot.Erase(wParam);
 	return 0;
 }
 
@@ -517,6 +522,13 @@ LRESULT CJigsawSolverWDlg::OnText(WPARAM wParam, LPARAM lParam)
 	m_Plot.Text(str, pt.x, pt.y);
 	return 0;
 }
+
+LRESULT CJigsawSolverWDlg::OnUnhold(WPARAM wParam, LPARAM lParam)
+{
+	m_Plot.Unhold();
+	return 0;
+}
+
 
 LRESULT CJigsawSolverWDlg::OnSave(WPARAM wParam, LPARAM lParam)
 {
@@ -541,6 +553,9 @@ LRESULT CJigsawSolverWDlg::OnSave(WPARAM wParam, LPARAM lParam)
 
 	PScores.Serialize(ar);
 
+	ar << Fits.size();
+	for (CFit& f : Fits) f.Serialize(ar);
+
 	return 0;
 }
 
@@ -561,31 +576,6 @@ void CPScore::Display(size_t nRow, size_t nCol, double dP0)
 {
 	__debugbreak();
 }
-
-void CPScore::Serialize(CArchive & ar)
-{
-	if (ar.IsStoring())
-	{
-		ar << "PScores";
-
-		ar << m_Size;
-		for (int i = 0; i < m_Size*m_Size; i++)
-			ar << m_ArcScores[i];
-	}
-	else
-	{
-		CheckArchiveLabel(ar, "PScores");
-
-		ar >> m_Size;
-		if (m_ArcScores) delete[] m_ArcScores;
-		SetSize(m_Size);
-		for (int i = 0; i < m_Size*m_Size; i++)
-			ar >> m_ArcScores[i];
-	}
-}
-
-
-
 
 void CJigsawSolverWDlg::OnBnClickedPause()
 {
@@ -615,3 +605,4 @@ void CJigsawSolverWDlg::OnClose()
 
 	__super::OnClose();
 }
+

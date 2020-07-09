@@ -25,16 +25,17 @@ public:
 
 public:
 
-	void Erase();
+	void Erase(bool bHold);
 	void* Plot(const Curve& curve, COLORREF color = 0, int width = 1);
 	void Delete(void* item);
 	void Text(std::string text, int x, int y);
+	void Unhold();
 
 
 private:
 	void Repaint();
 
-
+	bool						m_bHold;
 	std::list<Curve>			m_Curves;			// Set of curves to be plotted
 	std::list<COLORREF>			m_Colors;
 	std::list<int>				m_Widths;

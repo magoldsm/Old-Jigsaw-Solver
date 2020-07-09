@@ -268,7 +268,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 			Progress.Delete(debughtilde);
 
 		debughtilde = Progress.Plot(debugEtildeDeltaK1, RGB(0, 255, 0), -3);
-		//Sleep(500);
+		Sleep(500);
 #endif
 	}
 
@@ -294,6 +294,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	double ThetaJm1 = 0.0;
 	Vector2d cJm1(0.0, 0.0);
 	double dStarK4 = pParams->m_dK4 * dStar;
+	bool bSeenOneTerminationCondition = false;
 
 	for (int j = 0; j < pParams->m_nJmax; j++)
 	{
@@ -312,6 +313,9 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 
 			if (Aj[c2] >= dStarK4)
 			{
+				//VectorXd denom = (diffNorm.array().pow(pParams->m_nNu) + pParams->m_dEpsilon).array() * diffNorm.array();
+				//MatrixXd ffjj = diff.array().colwise() / denom.array();
+				//Vector2d FJ = ffjj.colwise().sum();
 				Vector2d fj = (diff.array().colwise() / (diffNorm.array().pow(pParams->m_nNu + 1) + pParams->m_dEpsilon * diffNorm.array())).colwise().sum();
 				fTotj.array() += fj.array();
 				RowVector2d t = EDeltaK1Transformed - wj;
@@ -347,6 +351,7 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 				Curve c = TransformCurveAboutCM(CDelta, gj, zCM);
 
 				plotHandle = Progress.Plot(c);
+				Sleep(100);
 			}
 
 			break;
@@ -379,12 +384,17 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 			c.rowwise() += zCM;
 
 			plotHandle = Progress.Plot(c);
+			Sleep(100);
 		}
 
 		// Step 7, termination condition
 
-		if ((thetaj*ThetaJm1 < 0 && cj[0] * cJm1[0] < 0 && cj[1] * cJm1[1] < 0))
-			break;
+		if ((thetaj * ThetaJm1 < 0 && cj[0] * cJm1[0] < 0 && cj[1] * cJm1[1] < 0))
+		{
+			if (bSeenOneTerminationCondition)
+				break;
+			bSeenOneTerminationCondition = true;
+		}
 
 		ThetaJm1 = thetaj;
 		cJm1 = cj;
@@ -404,6 +414,11 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 	VectorXb* test3 = new VectorXb[nC];
 
 	Vector2d* temp = new Vector2d[nC];
+	double* tempx = new double[nC];
+	double* tempy = new double[nC];
+
+	double* cdtrx = new double[nC];
+	double* cdtry = new double[nC];
 
 	//vector<VectorXb> test2, test3;
 	//vector<VectorXd> diff;
@@ -457,49 +472,50 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 		test3[c2].resize(nCtilde);
 	}
 
-	double A[1000], B[1000], C[1000];
 	double* pCDeltaX = (double*) &CDelta(0, 0);
 	double* pCDeltaY = (double*) &CDelta(0, 1);
+	double zCMx = zCM[0];
+	double zCMy = zCM[1];
 
-
-#pragma loop( hint_parallel( 0 ) )
-	for (int c2 = 0; c2 < nC; c2++)
-	{
-		A[c2] = B[c2] + C[c2];
-		temp[c2][0] = pCDeltaX[c2] - zCM[0];
-		temp[c2][1] = pCDeltaY[c2] - zCM[1];
-		//temp[c2] = CDelta.row(c2).array() - zCM.array();
-	}
+	double* ctdx = (double*)CtildeDelta.data();		// remove const from data()
+	double* ctdy = ctdx + nCtilde;
 
 //#pragma loop( hint_parallel( 0 ) )
-	for (int c2 = 0; c2 < nC; c2++)
-	{
-		Vector2d temp = CDelta.row(c2).array() - zCM.array();
-		double cdtrx = (temp(0) * cosj - temp(1) * sinj) + dxj;
-		double cdtry = (temp(0) * sinj + temp(1) * cosj) + dyj;
+//	for (int c2 = 0; c2 < nC; c2++)
+//	{
+//		tempx[c2] = pCDeltaX[c2] - zCMx;
+//		double cdtrx = (tempx[c2] * cosj - tempy[c2] * sinj) + dxj;
+//		double cdtry = (tempx[c2] * sinj + tempy[c2] * cosj) + dyj;
+//
+//		VectorXb& test2c2 = test2[c2];
+//		VectorXb& test3c2 = test3[c2];
+//	}
 
-		double* ctdx = (double*)CtildeDelta.data();		// remove const from data()
-		double* ctdy = ctdx + nCtilde;
-		//test2[c2].resize(nCtilde);
-		//test3[c2].resize(nCtilde);
-		VectorXb& test2c2 = test2[c2];
-		VectorXb& test3c2 = test3[c2];
+	//for (int c2 = 0; c2 < nC; c2++)
+	//{
+		FOR_START(c2, 0, nC)
+		tempx[c2] = pCDeltaX[c2] - zCMx;
+		tempy[c2] = pCDeltaY[c2] - zCMy;
+		cdtrx[c2] = (tempx[c2] * cosj - tempy[c2] * sinj) + dxj;
+		cdtry[c2] = (tempx[c2] * sinj + tempy[c2] * cosj) + dyj;
 
-#pragma loop( ivdep )
-		for (int i = 0; i < nCtilde; i++)
-		{
-			double d = (ctdx[i] - cdtrx)*(ctdx[i] - cdtrx) + (ctdy[i] - cdtry)*(ctdy[i] - cdtry);
-			test2c2[i] = d < K2dStarSquared;
-			test3c2[i] = d < K3dStarSquared;
-		}
-		bTest2Any[c2] = test2[c2].any();
-		bTest3Any[c2] = test3[c2].any();
-	}
+		FOR_END
+	//}
 #endif
+		for (int c2 = 0; c2 < nC; c2++)
+		{
+			VectorXb& test2c2 = test2[c2];
+			VectorXb& test3c2 = test3[c2];
 
-	delete[] test2;
-	delete[] test3;
-	delete[] temp;
+			for (int i = 0; i < nCtilde; i++)
+			{
+				double d = (ctdx[i] - cdtrx[c2]) * (ctdx[i] - cdtrx[c2]) + (ctdy[i] - cdtry[c2]) * (ctdy[i] - cdtry[c2]);
+				test2c2[i] = d < K2dStarSquared;
+				test3c2[i] = d < K3dStarSquared;
+			}
+			bTest2Any[c2] = test2[c2].any();
+			bTest3Any[c2] = test3[c2].any();
+		}
 
 		//DebugOutput("-----------------------------------------\n");
 
@@ -527,6 +543,14 @@ Lock(const GTransform& g0, const Curve& CDelta, const Curve& CtildeDelta, GTrans
 			D_Delta_3_Ics.push_back(c2);
 		}
 	}
+
+	delete[] test2;
+	delete[] test3;
+	delete[] temp;
+	delete[] tempx;
+	delete[] tempy;
+	delete[] cdtrx;
+	delete[] cdtry;
 
 	if (nC == 492)
 		DebugOutput("Pre-Unique:  Dtilde_Delta_2_Ics has %d points, Dtilde_Delta_3_Ics has %d points\n", Dtilde_Delta_2_Ics.size(), Dtilde_Delta_3_Ics.size());

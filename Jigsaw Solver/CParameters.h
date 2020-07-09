@@ -43,6 +43,7 @@ public:
 	BOOL m_bPlotBVD;
 	BOOL m_bShowPScores;
 	BOOL m_bSave;
+	BOOL m_bDumpFitBeforeQSort;
 
 	char m_szPlotLevel[100];
 
